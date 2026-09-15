@@ -1,0 +1,62 @@
+[
+  {
+    "id": 1,
+    "descricaoProduto": "Poção de Cura Menor",
+    "quantidadeEstoque": 12,
+    "precoLiquido": 25.00
+  },
+  {
+    "id": 2,
+    "descricaoProduto": "Adaga de Ferro Batido",
+    "quantidadeEstoque": 6,
+    "precoLiquido": 40.50
+  },
+  {
+    "id": 3,
+    "descricaoProduto": "Capa de Viajante Encerada",
+    "quantidadeEstoque": 8,
+    "precoLiquido": 62.90
+  },
+  {
+    "id": 4,
+    "descricaoProduto": "Lanterna de Óleo",
+    "quantidadeEstoque": 15,
+    "precoLiquido": 18.75
+  },
+  {
+    "id": 5,
+    "descricaoProduto": "Corda de Cânhamo (15 m)",
+    "quantidadeEstoque": 30,
+    "precoLiquido": 9.90
+  },
+  {
+    "id": 6,
+    "descricaoProduto": "Pergaminho de Luz",
+    "quantidadeEstoque": 4,
+    "precoLiquido": 33.33
+  },
+  {
+    "id": 7,
+    "descricaoProduto": "Escudo de Carvalho Reforçado",
+    "quantidadeEstoque": 3,
+    "precoLiquido": 89.00
+  },
+  {
+    "id": 8,
+    "descricaoProduto": "Botas de Passos Silenciosos",
+    "quantidadeEstoque": 2,
+    "precoLiquido": 120.00
+  },
+  {
+    "id": 9,
+    "descricaoProduto": "Ração de Viagem (3 dias)",
+    "quantidadeEstoque": 50,
+    "precoLiquido": 7.45
+  },
+  {
+    "id": 10,
+    "descricaoProduto": "Amuleto Rúnico de Proteção",
+    "quantidadeEstoque": 1,
+    "precoLiquido": 249.99
+  }
+]

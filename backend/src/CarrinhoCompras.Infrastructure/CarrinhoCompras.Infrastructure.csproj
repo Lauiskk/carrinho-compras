@@ -10,4 +10,11 @@
     <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Catálogo inicial (produtos.json e cupons.json) embutido no assembly: vai junto em qualquer publicação -->
+    <None Remove="Persistence\Seed\*.json" />
+    <EmbeddedResource Include="Persistence\Seed\*.json"
+                      LogicalName="CarrinhoCompras.Infrastructure.Persistence.Seed.%(Filename)%(Extension)" />
+  </ItemGroup>
+
 </Project>
