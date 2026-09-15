@@ -12,6 +12,7 @@ API REST de carrinho de compras em **.NET 10** (ASP.NET Core + EF Core + Postgre
   - [Configuração do banco de dados](#configuração-do-banco-de-dados)
 - [Testes](#testes)
 - [API](#api)
+  - [Exemplos de chamadas (.http e Postman)](#exemplos-de-chamadas)
 - [Arquitetura](#arquitetura)
 - [Decisões de design](#decisões-de-design)
 - [Premissas assumidas](#premissas-assumidas)
@@ -191,6 +192,18 @@ Erros de validação trazem também `errors`, por campo: `{ "quantidade": ["A qu
 | 422 | `carrinho.vazio` | Finalizar carrinho sem itens |
 | 500 | `erro.interno` | Falha inesperada (sem detalhes internos na resposta; registrada em log) |
 
+### Exemplos de chamadas
+
+A pasta [`http/`](http) traz o mesmo roteiro em dois formatos: catálogo, criação do carrinho, itens (soma e substituição), cupom (troca, remoção, normalização), cada erro tratado, checkout e bloqueio após finalizar.
+
+- **[`carrinho-compras.http`](http/carrinho-compras.http)** — para o VS Code (extensão REST Client) ou o Visual Studio 2022 (17.12+). Execute de cima para baixo: o id do carrinho criado é capturado automaticamente e reaproveitado nas chamadas seguintes.
+- **[`carrinho-compras.postman_collection.json`](http/carrinho-compras.postman_collection.json)** — importe no Postman e rode no Collection Runner. As 40 requisições têm testes automáticos (status, preço do item, subtotal, desconto, total e `code` dos erros). Pela linha de comando:
+  ```bash
+  npx newman run http/carrinho-compras.postman_collection.json
+  ```
+
+As duas assumem a API em `http://localhost:5080` (variável `baseUrl`) e o catálogo padrão. No CI, a coleção roda contra a stack do `docker compose`, como teste ponta a ponta.
+
 ---
 
 ## Arquitetura
@@ -255,7 +268,7 @@ frontend/
 
 **Entrega**
 - **Docker:** build multi-stage com cache de restore; imagem final `chiseled` (sem shell) rodando sem root; **migrations em um serviço separado** (bundle do EF Core), para a API não migrar o banco ao subir; front servido por nginx sem root, com proxy para a API (mesma origem, sem CORS).
-- **CI (GitHub Actions):** build com warnings como erro, checagem de migrations pendentes, todos os testes (inclusive integração com Testcontainers), lint/testes/build do front e build das imagens.
+- **CI (GitHub Actions):** build com warnings como erro, checagem de migrations pendentes, todos os testes (inclusive integração com Testcontainers), lint/testes/build do front e, por fim, a stack inteira no `docker compose` validada pela coleção do Postman.
 
 ---
 
@@ -306,4 +319,4 @@ Todos os requisitos do enunciado e os diferenciais estão implementados. Evoluç
 - **Cupons mais completos:** validade, valor mínimo e limite de uso, com o percentual aplicado registrado no carrinho.
 - **Chaves de idempotência** nas operações de escrita, para repetições seguras de rede.
 - **Observabilidade:** OpenTelemetry (traces e métricas) e logs estruturados.
-- **Testes ponta a ponta** com Playwright contra o `docker compose`.
+- **Testes ponta a ponta da interface** com Playwright contra o `docker compose` (a API já é validada ponta a ponta pela coleção do Postman no CI).

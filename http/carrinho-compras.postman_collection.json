@@ -1,0 +1,1889 @@
+{
+  "info": {
+    "_postman_id": "2f26383f-61d2-5790-9504-9f41c687b440",
+    "name": "Carrinho de Compras API",
+    "description": "Exemplos de chamadas e testes automáticos da API do carrinho de compras.\n\nComo usar:\n1. Suba a API (`docker compose up --build` ou `dotnet run`). A variável `baseUrl` aponta para http://localhost:5080.\n2. Execute a coleção inteira na ordem (Collection Runner) ou pela linha de comando: `npx newman run http/carrinho-compras.postman_collection.json`.\n\nO carrinho criado em \"2. Carrinho\" fica na variável `carrinhoId` e é reaproveitado nas pastas seguintes. Os valores esperados consideram o catálogo padrão (produtos.json e cupons.json). Todo erro é validado no formato ProblemDetails, com `code` e `traceId`.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5080"
+    },
+    {
+      "key": "carrinhoId",
+      "value": ""
+    },
+    {
+      "key": "carrinhoVazioId",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Catálogo",
+      "description": "Produtos com preço líquido unitário e quantidade em estoque.",
+      "item": [
+        {
+          "name": "Listar produtos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/produtos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "produtos"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Catálogo com os campos do produtos.json', () => {",
+                  "  const produtos = pm.response.json();",
+                  "  pm.expect(produtos).to.be.an('array').that.is.not.empty;",
+                  "  pm.expect(produtos[0]).to.have.all.keys('id', 'descricaoProduto', 'precoLiquido', 'quantidadeEstoque');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Obter produto (Botas: estoque 2)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/produtos/8",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "produtos",
+                "8"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Botas com estoque 2', () => pm.expect(pm.response.json().quantidadeEstoque).to.eql(2));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Carrinho",
+      "description": "Cria o carrinho usado nas próximas pastas.",
+      "item": [
+        {
+          "name": "Criar carrinho",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/carrinhos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "carrinhos"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const carrinho = pm.response.json();",
+                  "pm.collectionVariables.set('carrinhoId', carrinho.id);",
+                  "pm.test('Location aponta para o carrinho', () => pm.expect(pm.response.headers.get('Location')).to.include(carrinho.id));",
+                  "pm.test('Carrinho aberto, vazio e com valores zerados', () => {",
+                  "  pm.expect(carrinho.status).to.eql('Aberto');",
+                  "  pm.expect(carrinho.itens).to.be.empty;",
+                  "  pm.expect(carrinho.subtotal).to.eql(0);",
+                  "  pm.expect(carrinho.total).to.eql(0);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Obter carrinho",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/carrinhos/{{carrinhoId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "carrinhos",
+                "{{carrinhoId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Mesmo carrinho', () => pm.expect(pm.response.json().id).to.eql(pm.collectionVariables.get('carrinhoId')));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. Itens",
+      "description": "Adicionar (soma), alterar (substitui) e recalcular.",
+      "item": [
+        {
+          "name": "Adicionar produto sem quantidade (entra com 1)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/carrinhos/{{carrinhoId}}/itens",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "carrinhos",
+                "{{carrinhoId}}",
+                "itens"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"produtoId\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Produto 1 com 1 unidade(s) e preço do item 25.0', () => {",
+                  "  const item = pm.response.json().itens.find(i => i.produtoId === 1);",
+                  "  pm.expect(item).to.exist;",
+                  "  pm.expect(item.quantidade).to.eql(1);",
+                  "  pm.expect(item.precoItem).to.be.closeTo(25.0, 0.001);",
+                  "  pm.expect(item).to.have.property('precoLiquidoUnitario');",
+                  "  pm.expect(item).to.have.property('quantidadeEstoque');",
+                  "});",
+                  "const carrinho = pm.response.json();",
+                  "pm.test('Subtotal 25.0, desconto 0 e total 25.0', () => {",
+                  "  pm.expect(carrinho.subtotal).to.be.closeTo(25.0, 0.001);",
+                  "  pm.expect(carrinho.desconto).to.be.closeTo(0, 0.001);",
+                  "  pm.expect(carrinho.total).to.be.closeTo(25.0, 0.001);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Adicionar o mesmo produto de novo (soma 1 + 2)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/carrinhos/{{carrinhoId}}/itens",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "carrinhos",
+                "{{carrinhoId}}",
+                "itens"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"produtoId\": 1,\n  \"quantidade\": 2\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Produto 1 com 3 unidade(s) e preço do item 75.0', () => {",
+                  "  const item = pm.response.json().itens.find(i => i.produtoId === 1);",
+                  "  pm.expect(item).to.exist;",
+                  "  pm.expect(item.quantidade).to.eql(3);",
+                  "  pm.expect(item.precoItem).to.be.closeTo(75.0, 0.001);",
+                  "  pm.expect(item).to.have.property('precoLiquidoUnitario');",
+                  "  pm.expect(item).to.have.property('quantidadeEstoque');",
+                  "});",
+                  "const carrinho = pm.response.json();",
+                  "pm.test('Subtotal 75.0, desconto 0 e total 75.0', () => {",
+                  "  pm.expect(carrinho.subtotal).to.be.closeTo(75.0, 0.001);",
+                  "  pm.expect(carrinho.desconto).to.be.closeTo(0, 0.001);",
+                  "  pm.expect(carrinho.total).to.be.closeTo(75.0, 0.001);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Adicionar outro produto com quantidade (3 × 33,33)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/carrinhos/{{carrinhoId}}/itens",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "carrinhos",
+                "{{carrinhoId}}",
+                "itens"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"produtoId\": 6,\n  \"quantidade\": 3\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Produto 6 com 3 unidade(s) e preço do item 99.99', () => {",
+                  "  const item = pm.response.json().itens.find(i => i.produtoId === 6);",
+                  "  pm.expect(item).to.exist;",
+                  "  pm.expect(item.quantidade).to.eql(3);",
+                  "  pm.expect(item.precoItem).to.be.closeTo(99.99, 0.001);",
+                  "  pm.expect(item).to.have.property('precoLiquidoUnitario');",
+                  "  pm.expect(item).to.have.property('quantidadeEstoque');",
+                  "});",
+                  "const carrinho = pm.response.json();",
+                  "pm.test('Subtotal 174.99, desconto 0 e total 174.99', () => {",
+                  "  pm.expect(carrinho.subtotal).to.be.closeTo(174.99, 0.001);",
+                  "  pm.expect(carrinho.desconto).to.be.closeTo(0, 0.001);",
+                  "  pm.expect(carrinho.total).to.be.closeTo(174.99, 0.001);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Alterar quantidade (3 → 5)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/carrinhos/{{carrinhoId}}/itens/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "carrinhos",
+                "{{carrinhoId}}",
+                "itens",
+                "1"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantidade\": 5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Produto 1 com 5 unidade(s) e preço do item 125.0', () => {",
+                  "  const item = pm.response.json().itens.find(i => i.produtoId === 1);",
+                  "  pm.expect(item).to.exist;",
+                  "  pm.expect(item.quantidade).to.eql(5);",
+                  "  pm.expect(item.precoItem).to.be.closeTo(125.0, 0.001);",
+                  "  pm.expect(item).to.have.property('precoLiquidoUnitario');",
+                  "  pm.expect(item).to.have.property('quantidadeEstoque');",
+                  "});",
+                  "const carrinho = pm.response.json();",
+                  "pm.test('Subtotal 224.99, desconto 0 e total 224.99', () => {",
+                  "  pm.expect(carrinho.subtotal).to.be.closeTo(224.99, 0.001);",
+                  "  pm.expect(carrinho.desconto).to.be.closeTo(0, 0.001);",
+                  "  pm.expect(carrinho.total).to.be.closeTo(224.99, 0.001);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Diminuir quantidade (5 → 2)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/carrinhos/{{carrinhoId}}/itens/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "carrinhos",
+                "{{carrinhoId}}",
+                "itens",
+                "1"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantidade\": 2\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Produto 1 com 2 unidade(s) e preço do item 50.0', () => {",
+                  "  const item = pm.response.json().itens.find(i => i.produtoId === 1);",
+                  "  pm.expect(item).to.exist;",
+                  "  pm.expect(item.quantidade).to.eql(2);",
+                  "  pm.expect(item.precoItem).to.be.closeTo(50.0, 0.001);",
+                  "  pm.expect(item).to.have.property('precoLiquidoUnitario');",
+                  "  pm.expect(item).to.have.property('quantidadeEstoque');",
+                  "});",
+                  "const carrinho = pm.response.json();",
+                  "pm.test('Subtotal 149.99, desconto 0 e total 149.99', () => {",
+                  "  pm.expect(carrinho.subtotal).to.be.closeTo(149.99, 0.001);",
+                  "  pm.expect(carrinho.desconto).to.be.closeTo(0, 0.001);",
+                  "  pm.expect(carrinho.total).to.be.closeTo(149.99, 0.001);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4. Cupom",
+      "description": "Um cupom ativo por vez; desconto sobre o subtotal, arredondado para 2 casas.",
+      "item": [
+        {
+          "name": "Aplicar 10OFF (14,999 → 15,00)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/carrinhos/{{carrinhoId}}/cupom",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "carrinhos",
+                "{{carrinhoId}}",
+                "cupom"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigoCupom\": \"10OFF\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Cupom ativo 10OFF', () => pm.expect(pm.response.json().cupom.codigoCupom).to.eql('10OFF'));",
+                  "const carrinho = pm.response.json();",
+                  "pm.test('Subtotal 149.99, desconto 15.0 e total 134.99', () => {",
+                  "  pm.expect(carrinho.subtotal).to.be.closeTo(149.99, 0.001);",
+                  "  pm.expect(carrinho.desconto).to.be.closeTo(15.0, 0.001);",
+                  "  pm.expect(carrinho.total).to.be.closeTo(134.99, 0.001);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Trocar para 15OFF (22,4985 → 22,50)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/carrinhos/{{carrinhoId}}/cupom",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "carrinhos",
+                "{{carrinhoId}}",
+                "cupom"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigoCupom\": \"15OFF\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Cupom ativo 15OFF', () => pm.expect(pm.response.json().cupom.codigoCupom).to.eql('15OFF'));",
+                  "const carrinho = pm.response.json();",
+                  "pm.test('Subtotal 149.99, desconto 22.5 e total 127.49', () => {",
+                  "  pm.expect(carrinho.subtotal).to.be.closeTo(149.99, 0.001);",
+                  "  pm.expect(carrinho.desconto).to.be.closeTo(22.5, 0.001);",
+                  "  pm.expect(carrinho.total).to.be.closeTo(127.49, 0.001);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Remover cupom",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/carrinhos/{{carrinhoId}}/cupom",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "carrinhos",
+                "{{carrinhoId}}",
+                "cupom"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Sem cupom aplicado', () => pm.expect(pm.response.json().cupom).to.be.null);",
+                  "const carrinho = pm.response.json();",
+                  "pm.test('Subtotal 149.99, desconto 0 e total 149.99', () => {",
+                  "  pm.expect(carrinho.subtotal).to.be.closeTo(149.99, 0.001);",
+                  "  pm.expect(carrinho.desconto).to.be.closeTo(0, 0.001);",
+                  "  pm.expect(carrinho.total).to.be.closeTo(149.99, 0.001);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Aplicar com espaços e minúsculas (normaliza para 15OFF)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/carrinhos/{{carrinhoId}}/cupom",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "carrinhos",
+                "{{carrinhoId}}",
+                "cupom"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigoCupom\": \"  15off \"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Cupom ativo 15OFF', () => pm.expect(pm.response.json().cupom.codigoCupom).to.eql('15OFF'));",
+                  "const carrinho = pm.response.json();",
+                  "pm.test('Subtotal 149.99, desconto 22.5 e total 127.49', () => {",
+                  "  pm.expect(carrinho.subtotal).to.be.closeTo(149.99, 0.001);",
+                  "  pm.expect(carrinho.desconto).to.be.closeTo(22.5, 0.001);",
+                  "  pm.expect(carrinho.total).to.be.closeTo(127.49, 0.001);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Remover produto (recalcula tudo)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/carrinhos/{{carrinhoId}}/itens/6",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "carrinhos",
+                "{{carrinhoId}}",
+                "itens",
+                "6"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Produto 6 saiu do carrinho', () => pm.expect(pm.response.json().itens.map(i => i.produtoId)).to.not.include(6));",
+                  "const carrinho = pm.response.json();",
+                  "pm.test('Subtotal 50.0, desconto 7.5 e total 42.5', () => {",
+                  "  pm.expect(carrinho.subtotal).to.be.closeTo(50.0, 0.001);",
+                  "  pm.expect(carrinho.desconto).to.be.closeTo(7.5, 0.001);",
+                  "  pm.expect(carrinho.total).to.be.closeTo(42.5, 0.001);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Adicionar de volta",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/carrinhos/{{carrinhoId}}/itens",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "carrinhos",
+                "{{carrinhoId}}",
+                "itens"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"produtoId\": 6,\n  \"quantidade\": 3\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Produto 6 com 3 unidade(s) e preço do item 99.99', () => {",
+                  "  const item = pm.response.json().itens.find(i => i.produtoId === 6);",
+                  "  pm.expect(item).to.exist;",
+                  "  pm.expect(item.quantidade).to.eql(3);",
+                  "  pm.expect(item.precoItem).to.be.closeTo(99.99, 0.001);",
+                  "  pm.expect(item).to.have.property('precoLiquidoUnitario');",
+                  "  pm.expect(item).to.have.property('quantidadeEstoque');",
+                  "});",
+                  "const carrinho = pm.response.json();",
+                  "pm.test('Subtotal 149.99, desconto 22.5 e total 127.49', () => {",
+                  "  pm.expect(carrinho.subtotal).to.be.closeTo(149.99, 0.001);",
+                  "  pm.expect(carrinho.desconto).to.be.closeTo(22.5, 0.001);",
+                  "  pm.expect(carrinho.total).to.be.closeTo(127.49, 0.001);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "5. Erros tratados",
+      "description": "Cada regra violada devolve ProblemDetails com um code estável.",
+      "item": [
+        {
+          "name": "400 - quantidade zero",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/carrinhos/{{carrinhoId}}/itens",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "carrinhos",
+                "{{carrinhoId}}",
+                "itens"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"produtoId\": 1,\n  \"quantidade\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Erro 400 requisicao.invalida no formato ProblemDetails', () => {",
+                  "  pm.response.to.have.status(400);",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json');",
+                  "  const problema = pm.response.json();",
+                  "  pm.expect(problema.code).to.eql('requisicao.invalida');",
+                  "  pm.expect(problema.status).to.eql(400);",
+                  "  pm.expect(problema.title).to.be.a('string').and.not.empty;",
+                  "  pm.expect(problema.detail).to.be.a('string').and.not.empty;",
+                  "  pm.expect(problema.traceId).to.be.a('string').and.not.empty;",
+                  "  pm.expect(problema.errors).to.have.property('quantidade');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "400 - JSON malformado",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/carrinhos/{{carrinhoId}}/itens",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "carrinhos",
+                "{{carrinhoId}}",
+                "itens"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"produtoId\":",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Erro 400 requisicao.invalida no formato ProblemDetails', () => {",
+                  "  pm.response.to.have.status(400);",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json');",
+                  "  const problema = pm.response.json();",
+                  "  pm.expect(problema.code).to.eql('requisicao.invalida');",
+                  "  pm.expect(problema.status).to.eql(400);",
+                  "  pm.expect(problema.title).to.be.a('string').and.not.empty;",
+                  "  pm.expect(problema.detail).to.be.a('string').and.not.empty;",
+                  "  pm.expect(problema.traceId).to.be.a('string').and.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "404 - produto inexistente",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/carrinhos/{{carrinhoId}}/itens",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "carrinhos",
+                "{{carrinhoId}}",
+                "itens"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"produtoId\": 999\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Erro 404 produto.nao_encontrado no formato ProblemDetails', () => {",
+                  "  pm.response.to.have.status(404);",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json');",
+                  "  const problema = pm.response.json();",
+                  "  pm.expect(problema.code).to.eql('produto.nao_encontrado');",
+                  "  pm.expect(problema.status).to.eql(404);",
+                  "  pm.expect(problema.title).to.be.a('string').and.not.empty;",
+                  "  pm.expect(problema.detail).to.be.a('string').and.not.empty;",
+                  "  pm.expect(problema.traceId).to.be.a('string').and.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "404 - alterar produto que não está no carrinho",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/carrinhos/{{carrinhoId}}/itens/3",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "carrinhos",
+                "{{carrinhoId}}",
+                "itens",
+                "3"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantidade\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Erro 404 carrinho.item_nao_encontrado no formato ProblemDetails', () => {",
+                  "  pm.response.to.have.status(404);",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json');",
+                  "  const problema = pm.response.json();",
+                  "  pm.expect(problema.code).to.eql('carrinho.item_nao_encontrado');",
+                  "  pm.expect(problema.status).to.eql(404);",
+                  "  pm.expect(problema.title).to.be.a('string').and.not.empty;",
+                  "  pm.expect(problema.detail).to.be.a('string').and.not.empty;",
+                  "  pm.expect(problema.traceId).to.be.a('string').and.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "404 - remover produto que não está no carrinho",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/carrinhos/{{carrinhoId}}/itens/3",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "carrinhos",
+                "{{carrinhoId}}",
+                "itens",
+                "3"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Erro 404 carrinho.item_nao_encontrado no formato ProblemDetails', () => {",
+                  "  pm.response.to.have.status(404);",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json');",
+                  "  const problema = pm.response.json();",
+                  "  pm.expect(problema.code).to.eql('carrinho.item_nao_encontrado');",
+                  "  pm.expect(problema.status).to.eql(404);",
+                  "  pm.expect(problema.title).to.be.a('string').and.not.empty;",
+                  "  pm.expect(problema.detail).to.be.a('string').and.not.empty;",
+                  "  pm.expect(problema.traceId).to.be.a('string').and.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "422 - adicionar além do estoque (Botas: 3 > 2)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/carrinhos/{{carrinhoId}}/itens",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "carrinhos",
+                "{{carrinhoId}}",
+                "itens"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"produtoId\": 8,\n  \"quantidade\": 3\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Erro 422 produto.estoque_insuficiente no formato ProblemDetails', () => {",
+                  "  pm.response.to.have.status(422);",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json');",
+                  "  const problema = pm.response.json();",
+                  "  pm.expect(problema.code).to.eql('produto.estoque_insuficiente');",
+                  "  pm.expect(problema.status).to.eql(422);",
+                  "  pm.expect(problema.title).to.be.a('string').and.not.empty;",
+                  "  pm.expect(problema.detail).to.be.a('string').and.not.empty;",
+                  "  pm.expect(problema.traceId).to.be.a('string').and.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "422 - alterar para além do estoque (Pergaminho: 5 > 4)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/carrinhos/{{carrinhoId}}/itens/6",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "carrinhos",
+                "{{carrinhoId}}",
+                "itens",
+                "6"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantidade\": 5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Erro 422 produto.estoque_insuficiente no formato ProblemDetails', () => {",
+                  "  pm.response.to.have.status(422);",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json');",
+                  "  const problema = pm.response.json();",
+                  "  pm.expect(problema.code).to.eql('produto.estoque_insuficiente');",
+                  "  pm.expect(problema.status).to.eql(422);",
+                  "  pm.expect(problema.title).to.be.a('string').and.not.empty;",
+                  "  pm.expect(problema.detail).to.be.a('string').and.not.empty;",
+                  "  pm.expect(problema.traceId).to.be.a('string').and.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "422 - cupom inexistente",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/carrinhos/{{carrinhoId}}/cupom",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "carrinhos",
+                "{{carrinhoId}}",
+                "cupom"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigoCupom\": \"NAOEXISTE\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Erro 422 cupom.invalido no formato ProblemDetails', () => {",
+                  "  pm.response.to.have.status(422);",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json');",
+                  "  const problema = pm.response.json();",
+                  "  pm.expect(problema.code).to.eql('cupom.invalido');",
+                  "  pm.expect(problema.status).to.eql(422);",
+                  "  pm.expect(problema.title).to.be.a('string').and.not.empty;",
+                  "  pm.expect(problema.detail).to.be.a('string').and.not.empty;",
+                  "  pm.expect(problema.traceId).to.be.a('string').and.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cupom anterior continua ativo",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/carrinhos/{{carrinhoId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "carrinhos",
+                "{{carrinhoId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Cupom ativo 15OFF', () => pm.expect(pm.response.json().cupom.codigoCupom).to.eql('15OFF'));",
+                  "const carrinho = pm.response.json();",
+                  "pm.test('Subtotal 149.99, desconto 22.5 e total 127.49', () => {",
+                  "  pm.expect(carrinho.subtotal).to.be.closeTo(149.99, 0.001);",
+                  "  pm.expect(carrinho.desconto).to.be.closeTo(22.5, 0.001);",
+                  "  pm.expect(carrinho.total).to.be.closeTo(127.49, 0.001);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "400 - código de cupom vazio",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/carrinhos/{{carrinhoId}}/cupom",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "carrinhos",
+                "{{carrinhoId}}",
+                "cupom"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigoCupom\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Erro 400 requisicao.invalida no formato ProblemDetails', () => {",
+                  "  pm.response.to.have.status(400);",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json');",
+                  "  const problema = pm.response.json();",
+                  "  pm.expect(problema.code).to.eql('requisicao.invalida');",
+                  "  pm.expect(problema.status).to.eql(400);",
+                  "  pm.expect(problema.title).to.be.a('string').and.not.empty;",
+                  "  pm.expect(problema.detail).to.be.a('string').and.not.empty;",
+                  "  pm.expect(problema.traceId).to.be.a('string').and.not.empty;",
+                  "  pm.expect(problema.errors).to.have.property('codigoCupom');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "415 - corpo que não é JSON",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "text/plain"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/carrinhos/{{carrinhoId}}/itens",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "carrinhos",
+                "{{carrinhoId}}",
+                "itens"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "produtoId=1"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Erro 415 midia.nao_suportada no formato ProblemDetails', () => {",
+                  "  pm.response.to.have.status(415);",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json');",
+                  "  const problema = pm.response.json();",
+                  "  pm.expect(problema.code).to.eql('midia.nao_suportada');",
+                  "  pm.expect(problema.status).to.eql(415);",
+                  "  pm.expect(problema.title).to.be.a('string').and.not.empty;",
+                  "  pm.expect(problema.detail).to.be.a('string').and.not.empty;",
+                  "  pm.expect(problema.traceId).to.be.a('string').and.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "404 - carrinho inexistente",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/carrinhos/01999999-0000-7000-8000-000000000000",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "carrinhos",
+                "01999999-0000-7000-8000-000000000000"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Erro 404 carrinho.nao_encontrado no formato ProblemDetails', () => {",
+                  "  pm.response.to.have.status(404);",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json');",
+                  "  const problema = pm.response.json();",
+                  "  pm.expect(problema.code).to.eql('carrinho.nao_encontrado');",
+                  "  pm.expect(problema.status).to.eql(404);",
+                  "  pm.expect(problema.title).to.be.a('string').and.not.empty;",
+                  "  pm.expect(problema.detail).to.be.a('string').and.not.empty;",
+                  "  pm.expect(problema.traceId).to.be.a('string').and.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "400 - id de carrinho inválido",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/carrinhos/nao-e-um-guid",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "carrinhos",
+                "nao-e-um-guid"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Erro 400 requisicao.invalida no formato ProblemDetails', () => {",
+                  "  pm.response.to.have.status(400);",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json');",
+                  "  const problema = pm.response.json();",
+                  "  pm.expect(problema.code).to.eql('requisicao.invalida');",
+                  "  pm.expect(problema.status).to.eql(400);",
+                  "  pm.expect(problema.title).to.be.a('string').and.not.empty;",
+                  "  pm.expect(problema.detail).to.be.a('string').and.not.empty;",
+                  "  pm.expect(problema.traceId).to.be.a('string').and.not.empty;",
+                  "  pm.expect(problema.errors).to.have.property('carrinhoId');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "6. Checkout",
+      "description": "Depois de finalizado, nenhuma alteração é aceita.",
+      "item": [
+        {
+          "name": "Finalizar carrinho",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/carrinhos/{{carrinhoId}}/finalizar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "carrinhos",
+                "{{carrinhoId}}",
+                "finalizar"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Status Finalizado com data', () => {",
+                  "  const carrinho = pm.response.json();",
+                  "  pm.expect(carrinho.status).to.eql('Finalizado');",
+                  "  pm.expect(carrinho.finalizadoEm).to.be.a('string');",
+                  "});",
+                  "const carrinho = pm.response.json();",
+                  "pm.test('Subtotal 149.99, desconto 22.5 e total 127.49', () => {",
+                  "  pm.expect(carrinho.subtotal).to.be.closeTo(149.99, 0.001);",
+                  "  pm.expect(carrinho.desconto).to.be.closeTo(22.5, 0.001);",
+                  "  pm.expect(carrinho.total).to.be.closeTo(127.49, 0.001);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "409 - adicionar item",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/carrinhos/{{carrinhoId}}/itens",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "carrinhos",
+                "{{carrinhoId}}",
+                "itens"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"produtoId\": 2\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Erro 409 carrinho.finalizado no formato ProblemDetails', () => {",
+                  "  pm.response.to.have.status(409);",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json');",
+                  "  const problema = pm.response.json();",
+                  "  pm.expect(problema.code).to.eql('carrinho.finalizado');",
+                  "  pm.expect(problema.status).to.eql(409);",
+                  "  pm.expect(problema.title).to.be.a('string').and.not.empty;",
+                  "  pm.expect(problema.detail).to.be.a('string').and.not.empty;",
+                  "  pm.expect(problema.traceId).to.be.a('string').and.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "409 - alterar quantidade",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/carrinhos/{{carrinhoId}}/itens/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "carrinhos",
+                "{{carrinhoId}}",
+                "itens",
+                "1"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantidade\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Erro 409 carrinho.finalizado no formato ProblemDetails', () => {",
+                  "  pm.response.to.have.status(409);",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json');",
+                  "  const problema = pm.response.json();",
+                  "  pm.expect(problema.code).to.eql('carrinho.finalizado');",
+                  "  pm.expect(problema.status).to.eql(409);",
+                  "  pm.expect(problema.title).to.be.a('string').and.not.empty;",
+                  "  pm.expect(problema.detail).to.be.a('string').and.not.empty;",
+                  "  pm.expect(problema.traceId).to.be.a('string').and.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "409 - remover item",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/carrinhos/{{carrinhoId}}/itens/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "carrinhos",
+                "{{carrinhoId}}",
+                "itens",
+                "1"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Erro 409 carrinho.finalizado no formato ProblemDetails', () => {",
+                  "  pm.response.to.have.status(409);",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json');",
+                  "  const problema = pm.response.json();",
+                  "  pm.expect(problema.code).to.eql('carrinho.finalizado');",
+                  "  pm.expect(problema.status).to.eql(409);",
+                  "  pm.expect(problema.title).to.be.a('string').and.not.empty;",
+                  "  pm.expect(problema.detail).to.be.a('string').and.not.empty;",
+                  "  pm.expect(problema.traceId).to.be.a('string').and.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "409 - aplicar cupom",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/carrinhos/{{carrinhoId}}/cupom",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "carrinhos",
+                "{{carrinhoId}}",
+                "cupom"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigoCupom\": \"10OFF\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Erro 409 carrinho.finalizado no formato ProblemDetails', () => {",
+                  "  pm.response.to.have.status(409);",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json');",
+                  "  const problema = pm.response.json();",
+                  "  pm.expect(problema.code).to.eql('carrinho.finalizado');",
+                  "  pm.expect(problema.status).to.eql(409);",
+                  "  pm.expect(problema.title).to.be.a('string').and.not.empty;",
+                  "  pm.expect(problema.detail).to.be.a('string').and.not.empty;",
+                  "  pm.expect(problema.traceId).to.be.a('string').and.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "409 - remover cupom",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/carrinhos/{{carrinhoId}}/cupom",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "carrinhos",
+                "{{carrinhoId}}",
+                "cupom"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Erro 409 carrinho.finalizado no formato ProblemDetails', () => {",
+                  "  pm.response.to.have.status(409);",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json');",
+                  "  const problema = pm.response.json();",
+                  "  pm.expect(problema.code).to.eql('carrinho.finalizado');",
+                  "  pm.expect(problema.status).to.eql(409);",
+                  "  pm.expect(problema.title).to.be.a('string').and.not.empty;",
+                  "  pm.expect(problema.detail).to.be.a('string').and.not.empty;",
+                  "  pm.expect(problema.traceId).to.be.a('string').and.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "409 - finalizar de novo",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/carrinhos/{{carrinhoId}}/finalizar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "carrinhos",
+                "{{carrinhoId}}",
+                "finalizar"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Erro 409 carrinho.finalizado no formato ProblemDetails', () => {",
+                  "  pm.response.to.have.status(409);",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json');",
+                  "  const problema = pm.response.json();",
+                  "  pm.expect(problema.code).to.eql('carrinho.finalizado');",
+                  "  pm.expect(problema.status).to.eql(409);",
+                  "  pm.expect(problema.title).to.be.a('string').and.not.empty;",
+                  "  pm.expect(problema.detail).to.be.a('string').and.not.empty;",
+                  "  pm.expect(problema.traceId).to.be.a('string').and.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Carrinho finalizado continua igual",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/carrinhos/{{carrinhoId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "carrinhos",
+                "{{carrinhoId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Ainda finalizado', () => pm.expect(pm.response.json().status).to.eql('Finalizado'));",
+                  "const carrinho = pm.response.json();",
+                  "pm.test('Subtotal 149.99, desconto 22.5 e total 127.49', () => {",
+                  "  pm.expect(carrinho.subtotal).to.be.closeTo(149.99, 0.001);",
+                  "  pm.expect(carrinho.desconto).to.be.closeTo(22.5, 0.001);",
+                  "  pm.expect(carrinho.total).to.be.closeTo(127.49, 0.001);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "7. Carrinho vazio",
+      "description": "Não é possível finalizar um carrinho sem itens.",
+      "item": [
+        {
+          "name": "Criar carrinho vazio",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/carrinhos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "carrinhos"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('carrinhoVazioId', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "422 - finalizar carrinho vazio",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/carrinhos/{{carrinhoVazioId}}/finalizar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "carrinhos",
+                "{{carrinhoVazioId}}",
+                "finalizar"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Erro 422 carrinho.vazio no formato ProblemDetails', () => {",
+                  "  pm.response.to.have.status(422);",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json');",
+                  "  const problema = pm.response.json();",
+                  "  pm.expect(problema.code).to.eql('carrinho.vazio');",
+                  "  pm.expect(problema.status).to.eql(422);",
+                  "  pm.expect(problema.title).to.be.a('string').and.not.empty;",
+                  "  pm.expect(problema.detail).to.be.a('string').and.not.empty;",
+                  "  pm.expect(problema.traceId).to.be.a('string').and.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "8. Saúde e documentação",
+      "description": "",
+      "item": [
+        {
+          "name": "Health check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Healthy', () => pm.expect(pm.response.text()).to.eql('Healthy'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Documento OpenAPI",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/openapi/v1.json",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "openapi",
+                "v1.json"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('OpenAPI 3.1', () => pm.expect(pm.response.json().openapi).to.match(/^3\\.1/));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

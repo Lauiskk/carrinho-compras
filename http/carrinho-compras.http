@@ -1,0 +1,275 @@
+# Exemplos de chamadas à API do Carrinho de Compras
+#
+# Como usar:
+#   - VS Code com a extensão "REST Client" ou Visual Studio 2022 (17.12+).
+#   - Suba a API (docker compose up --build, ou dotnet run) e execute as requisições de cima para baixo:
+#     o carrinho criado em "2. Carrinho" é reaproveitado automaticamente nas seções seguintes.
+#   - Os valores comentados consideram o catálogo padrão (produtos.json / cupons.json).
+#   - Todo erro volta no formato ProblemDetails, com "code" estável e "traceId".
+
+@baseUrl = http://localhost:5080
+
+
+############################################################################
+# 1. Catálogo
+############################################################################
+
+### Listar produtos (preço líquido unitário e estoque)
+GET {{baseUrl}}/api/produtos
+Accept: application/json
+
+### Obter um produto (Botas: estoque 2)
+GET {{baseUrl}}/api/produtos/8
+Accept: application/json
+
+
+############################################################################
+# 2. Carrinho
+############################################################################
+
+### Criar carrinho (201 + Location; status Aberto e valores zerados)
+# @name criarCarrinho
+POST {{baseUrl}}/api/carrinhos
+
+### Obter o carrinho
+GET {{baseUrl}}/api/carrinhos/{{criarCarrinho.response.body.$.id}}
+Accept: application/json
+
+
+############################################################################
+# 3. Itens
+############################################################################
+
+### Adicionar produto sem informar quantidade: entra com 1 (subtotal 25,00)
+POST {{baseUrl}}/api/carrinhos/{{criarCarrinho.response.body.$.id}}/itens
+Content-Type: application/json
+
+{
+  "produtoId": 1
+}
+
+### Adicionar o mesmo produto de novo: a quantidade soma (1 + 2 = 3; preço do item 75,00)
+POST {{baseUrl}}/api/carrinhos/{{criarCarrinho.response.body.$.id}}/itens
+Content-Type: application/json
+
+{
+  "produtoId": 1,
+  "quantidade": 2
+}
+
+### Adicionar outro produto com quantidade (3 × 33,33 = 99,99; subtotal 174,99)
+POST {{baseUrl}}/api/carrinhos/{{criarCarrinho.response.body.$.id}}/itens
+Content-Type: application/json
+
+{
+  "produtoId": 6,
+  "quantidade": 3
+}
+
+### Alterar quantidade (substitui 3 → 5; subtotal 224,99)
+PUT {{baseUrl}}/api/carrinhos/{{criarCarrinho.response.body.$.id}}/itens/1
+Content-Type: application/json
+
+{
+  "quantidade": 5
+}
+
+### Diminuir quantidade (5 → 2; subtotal 149,99)
+PUT {{baseUrl}}/api/carrinhos/{{criarCarrinho.response.body.$.id}}/itens/1
+Content-Type: application/json
+
+{
+  "quantidade": 2
+}
+
+
+############################################################################
+# 4. Cupom
+############################################################################
+
+### Aplicar 10OFF (149,99 × 10% = 14,999 → desconto 15,00; total 134,99)
+PUT {{baseUrl}}/api/carrinhos/{{criarCarrinho.response.body.$.id}}/cupom
+Content-Type: application/json
+
+{
+  "codigoCupom": "10OFF"
+}
+
+### Trocar para 15OFF: só um cupom ativo (22,4985 → desconto 22,50; total 127,49)
+PUT {{baseUrl}}/api/carrinhos/{{criarCarrinho.response.body.$.id}}/cupom
+Content-Type: application/json
+
+{
+  "codigoCupom": "15OFF"
+}
+
+### Remover cupom (desconto 0; total 149,99)
+DELETE {{baseUrl}}/api/carrinhos/{{criarCarrinho.response.body.$.id}}/cupom
+
+### Aplicar de novo, com espaços e minúsculas: o código é normalizado para 15OFF
+PUT {{baseUrl}}/api/carrinhos/{{criarCarrinho.response.body.$.id}}/cupom
+Content-Type: application/json
+
+{
+  "codigoCupom": "  15off "
+}
+
+### Remover um produto: subtotal, desconto e total são recalculados (50,00 / 7,50 / 42,50)
+DELETE {{baseUrl}}/api/carrinhos/{{criarCarrinho.response.body.$.id}}/itens/6
+
+### Adicionar de volta (149,99 / 22,50 / 127,49)
+POST {{baseUrl}}/api/carrinhos/{{criarCarrinho.response.body.$.id}}/itens
+Content-Type: application/json
+
+{
+  "produtoId": 6,
+  "quantidade": 3
+}
+
+
+############################################################################
+# 5. Erros tratados (o carrinho continua aberto)
+############################################################################
+
+### 400 requisicao.invalida: quantidade menor ou igual a zero
+POST {{baseUrl}}/api/carrinhos/{{criarCarrinho.response.body.$.id}}/itens
+Content-Type: application/json
+
+{
+  "produtoId": 1,
+  "quantidade": 0
+}
+
+### 400 requisicao.invalida: JSON malformado
+POST {{baseUrl}}/api/carrinhos/{{criarCarrinho.response.body.$.id}}/itens
+Content-Type: application/json
+
+{ "produtoId":
+
+### 404 produto.nao_encontrado: produto fora do catálogo
+POST {{baseUrl}}/api/carrinhos/{{criarCarrinho.response.body.$.id}}/itens
+Content-Type: application/json
+
+{
+  "produtoId": 999
+}
+
+### 404 carrinho.item_nao_encontrado: alterar produto que não está no carrinho
+PUT {{baseUrl}}/api/carrinhos/{{criarCarrinho.response.body.$.id}}/itens/3
+Content-Type: application/json
+
+{
+  "quantidade": 1
+}
+
+### 404 carrinho.item_nao_encontrado: remover produto que não está no carrinho
+DELETE {{baseUrl}}/api/carrinhos/{{criarCarrinho.response.body.$.id}}/itens/3
+
+### 422 produto.estoque_insuficiente: adicionar além do estoque (Botas: estoque 2)
+POST {{baseUrl}}/api/carrinhos/{{criarCarrinho.response.body.$.id}}/itens
+Content-Type: application/json
+
+{
+  "produtoId": 8,
+  "quantidade": 3
+}
+
+### 422 produto.estoque_insuficiente: alterar para além do estoque (Pergaminho: estoque 4)
+PUT {{baseUrl}}/api/carrinhos/{{criarCarrinho.response.body.$.id}}/itens/6
+Content-Type: application/json
+
+{
+  "quantidade": 5
+}
+
+### 422 cupom.invalido: cupom inexistente (o cupom aplicado continua o mesmo)
+PUT {{baseUrl}}/api/carrinhos/{{criarCarrinho.response.body.$.id}}/cupom
+Content-Type: application/json
+
+{
+  "codigoCupom": "NAOEXISTE"
+}
+
+### 400 requisicao.invalida: código de cupom vazio
+PUT {{baseUrl}}/api/carrinhos/{{criarCarrinho.response.body.$.id}}/cupom
+Content-Type: application/json
+
+{
+  "codigoCupom": ""
+}
+
+### 415 midia.nao_suportada: corpo que não é JSON
+POST {{baseUrl}}/api/carrinhos/{{criarCarrinho.response.body.$.id}}/itens
+Content-Type: text/plain
+
+produtoId=1
+
+### 404 carrinho.nao_encontrado: carrinho inexistente
+GET {{baseUrl}}/api/carrinhos/01999999-0000-7000-8000-000000000000
+
+### 400 requisicao.invalida: id de carrinho que não é um GUID
+GET {{baseUrl}}/api/carrinhos/nao-e-um-guid
+
+
+############################################################################
+# 6. Checkout
+############################################################################
+
+### Finalizar o carrinho (status Finalizado; valores preservados: total 127,49)
+POST {{baseUrl}}/api/carrinhos/{{criarCarrinho.response.body.$.id}}/finalizar
+
+### 409 carrinho.finalizado: adicionar item em carrinho finalizado
+POST {{baseUrl}}/api/carrinhos/{{criarCarrinho.response.body.$.id}}/itens
+Content-Type: application/json
+
+{
+  "produtoId": 2
+}
+
+### 409 carrinho.finalizado: alterar quantidade em carrinho finalizado
+PUT {{baseUrl}}/api/carrinhos/{{criarCarrinho.response.body.$.id}}/itens/1
+Content-Type: application/json
+
+{
+  "quantidade": 1
+}
+
+### 409 carrinho.finalizado: remover item em carrinho finalizado
+DELETE {{baseUrl}}/api/carrinhos/{{criarCarrinho.response.body.$.id}}/itens/1
+
+### 409 carrinho.finalizado: aplicar cupom em carrinho finalizado
+PUT {{baseUrl}}/api/carrinhos/{{criarCarrinho.response.body.$.id}}/cupom
+Content-Type: application/json
+
+{
+  "codigoCupom": "10OFF"
+}
+
+### 409 carrinho.finalizado: remover cupom em carrinho finalizado
+DELETE {{baseUrl}}/api/carrinhos/{{criarCarrinho.response.body.$.id}}/cupom
+
+### 409 carrinho.finalizado: finalizar de novo
+POST {{baseUrl}}/api/carrinhos/{{criarCarrinho.response.body.$.id}}/finalizar
+
+
+############################################################################
+# 7. Carrinho vazio não pode ser finalizado
+############################################################################
+
+### Criar outro carrinho
+# @name criarCarrinhoVazio
+POST {{baseUrl}}/api/carrinhos
+
+### 422 carrinho.vazio
+POST {{baseUrl}}/api/carrinhos/{{criarCarrinhoVazio.response.body.$.id}}/finalizar
+
+
+############################################################################
+# 8. Saúde e documentação
+############################################################################
+
+### Health check (verifica o banco)
+GET {{baseUrl}}/health
+
+### Documento OpenAPI (a interface fica em /swagger)
+GET {{baseUrl}}/openapi/v1.json
