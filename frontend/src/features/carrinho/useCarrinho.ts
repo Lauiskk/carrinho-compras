@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { carrinhosApi } from '../../api/carrinhosApi'
-import { ApiError } from '../../api/http'
+import { ApiError, CODIGO_SEM_CONEXAO } from '../../api/http'
 import type { Carrinho } from '../../api/tipos'
 import { chaveCarrinho, useCarrinhoContexto } from './carrinhoContexto'
 
@@ -49,15 +49,18 @@ function useAlteracaoDoCarrinho<TVariaveis>(executar: (carrinhoId: string, varia
     },
     onSuccess: definirCarrinho,
     onError: (erro) => {
-      if (!(erro instanceof ApiError)) {
+      if (!(erro instanceof ApiError) || erro.code === CODIGO_SEM_CONEXAO) {
         return
       }
 
       if (erro.code === 'carrinho.nao_encontrado') {
         esquecerCarrinho()
-      } else if (erro.code === 'carrinho.finalizado' || erro.code === 'carrinho.conflito_concorrencia') {
-        void queryClient.invalidateQueries({ queryKey: ['carrinho'] })
+        return
       }
+
+      // Uma recusa da API (estoque, carrinho finalizado, concorrência...) pode significar que a tela está
+      // desatualizada, por exemplo porque outra aba alterou o carrinho: recarrega o estado real do servidor.
+      void queryClient.invalidateQueries({ queryKey: ['carrinho'] })
     },
   })
 }

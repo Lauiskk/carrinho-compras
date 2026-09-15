@@ -2,6 +2,7 @@ import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import type { Carrinho } from '../api/tipos'
+import { carrinhoIdStorage } from '../features/carrinho/carrinhoIdStorage'
 import { botas, carrinhoVazio, pocao, problema } from '../test/dados'
 import { renderizar } from '../test/renderizar'
 import { servidor } from '../test/servidor'
@@ -84,20 +85,33 @@ describe('Fluxo completo da loja', () => {
     expect(await within(sacola).findByText(/Sua sacola está vazia/)).toBeInTheDocument()
   })
 
-  it('mostra junto do produto o erro de estoque devolvido pela API', async () => {
-    simularApi()
+  it('mostra junto do produto o erro de estoque e ressincroniza a sacola com o servidor', async () => {
+    // A tela carrega o carrinho vazio; depois, outra aba coloca todo o estoque das botas nele.
+    let carrinhoNoServidor = carrinhoVazio()
+    carrinhoIdStorage.gravar(carrinhoNoServidor.id)
     servidor.use(
+      http.get('/api/produtos', () => HttpResponse.json([pocao, botas])),
+      http.get('/api/carrinhos/:id', () => HttpResponse.json(carrinhoNoServidor)),
       http.post('/api/carrinhos/:id/itens', () =>
         comProblema(422, 'produto.estoque_insuficiente', "Estoque insuficiente para 'Botas de Passos Silenciosos'."),
       ),
     )
     const usuario = userEvent.setup()
     renderizar(<App />)
+    const sacola = screen.getByRole('complementary', { name: 'Sua sacola' })
+    expect(await within(sacola).findByText(/Sua sacola está vazia/)).toBeInTheDocument()
 
-    await usuario.click(await screen.findByRole('button', { name: `Adicionar ${botas.descricaoProduto} à sacola` }))
+    carrinhoNoServidor = carrinhoVazio({
+      itens: [{ produtoId: 8, descricaoProduto: botas.descricaoProduto, precoLiquidoUnitario: 120, quantidadeEstoque: 2, quantidade: 2, precoItem: 240 }],
+      subtotal: 240,
+      total: 240,
+    })
+    await usuario.click(screen.getByRole('button', { name: `Adicionar ${botas.descricaoProduto} à sacola` }))
 
     const produto = screen.getByRole('heading', { name: botas.descricaoProduto }).closest('li') as HTMLElement
     expect(await within(produto).findByRole('alert')).toHaveTextContent("Estoque insuficiente para 'Botas de Passos Silenciosos'.")
+    expect(await within(sacola).findByText(botas.descricaoProduto)).toBeInTheDocument()
+    expect(within(sacola).getByText('Total').nextElementSibling).toHaveTextContent('240,00 moedas de ouro')
   })
 
   it('avisa quando a API está fora do ar', async () => {
