@@ -1,0 +1,54 @@
+.loja {
+  max-width: 86rem;
+  margin: 0 auto;
+  padding: var(--espaco-6) clamp(1rem, 3.5vw, 2.75rem) 7rem;
+}
+
+@media (min-width: 64rem) {
+  .loja {
+    padding-bottom: var(--espaco-8);
+  }
+}
+
+.letreiro {
+  display: flex;
+  align-items: center;
+  gap: var(--espaco-4);
+  margin-bottom: var(--espaco-7);
+}
+
+.brasao {
+  width: clamp(2.75rem, 6vw, 3.75rem);
+  height: clamp(2.75rem, 6vw, 3.75rem);
+  flex: none;
+  color: var(--ouro);
+  filter: drop-shadow(0 0 18px rgb(224 161 66 / 0.35));
+}
+
+.nome {
+  font-family: var(--fonte-titulo);
+  font-size: clamp(2.3rem, 6.5vw, var(--passo-5));
+  font-weight: 600;
+  line-height: 0.95;
+  text-shadow: 0 2px 0 rgb(0 0 0 / 0.4);
+}
+
+.lema {
+  margin-top: var(--espaco-2);
+  color: var(--texto-suave);
+  font-style: italic;
+  font-size: var(--passo-1);
+  line-height: 1.3;
+}
+
+.balcao {
+  display: grid;
+  gap: var(--espaco-7);
+}
+
+@media (min-width: 64rem) {
+  .balcao {
+    grid-template-columns: minmax(0, 1fr) minmax(22rem, 26rem);
+    align-items: start;
+  }
+}
