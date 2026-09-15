@@ -1,0 +1,15 @@
+.moeda {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3em;
+  font-variant-numeric: lining-nums tabular-nums;
+  white-space: nowrap;
+}
+
+.icone {
+  width: 0.9em;
+  height: 0.9em;
+  flex: none;
+  color: var(--cor-moeda, var(--ouro));
+  transform: translateY(-0.05em);
+}
