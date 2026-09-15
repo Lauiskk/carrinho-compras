@@ -245,6 +245,12 @@ frontend/
 
 ## Decisões de design
 
+**Modelagem de produto, estoque e carrinho**
+- **`Produto`** (`ID`, `DescricaoProduto`, `PrecoLiquido`, `QuantidadeEstoque`) vem do catálogo e é somente leitura para a API: nenhum endpoint altera preço ou estoque.
+- **Estoque é um limite, não uma reserva:** a validação compara a **quantidade resultante** do item no carrinho (atual + adicionada, ou a nova quantidade substituída) com `QuantidadeEstoque`. A soma é feita em `long`, para uma quantidade enorme não estourar o inteiro e passar na validação.
+- **`Carrinho`** é a raiz do agregado: status (`Aberto`/`Finalizado`), no máximo um cupom, subtotal, desconto e total. **`ItemCarrinho`** guarda produto, quantidade, preço unitário e preço do item (preço unitário × quantidade), com uma linha por produto.
+- As respostas expõem, para o produto, `precoLiquido` e `quantidadeEstoque` e, para o item, `precoLiquidoUnitario` e `quantidadeEstoque` (estoque atual do produto).
+
 **Modelagem e regras**
 - **Domínio rico:** estado com setters privados, e toda alteração passa por métodos do `Carrinho`, que validam e **sempre recalculam** subtotal, desconto e total. Não há outro caminho para mudar um item.
 - **Result pattern** para falhas esperadas (estoque, cupom, carrinho finalizado); exceções só para erro de programação. O domínio classifica a falha (validação, não encontrado, conflito, regra de negócio) sem conhecer HTTP; a API faz a tradução.
@@ -301,7 +307,7 @@ frontend/
 
 - **O front nunca calcula dinheiro:** exibe exatamente o que a API devolve. Cada alteração substitui o estado local pelo carrinho recalculado.
 - **TanStack Query** cuida do estado do servidor; as alterações do carrinho são **enfileiradas** (uma de cada vez, na ordem dos cliques), e um carrinho só é criado na primeira ação.
-- **Erros aparecem junto da ação que falhou**, com a mensagem da API (estoque, cupom inválido, carrinho finalizado).
+- **Erros aparecem junto da ação que falhou**, com a mensagem da API (estoque, cupom inválido, carrinho finalizado). Depois de uma recusa, a sacola é recarregada do servidor: se outra aba alterou ou finalizou o carrinho, a tela mostra o estado real.
 - **Identidade visual própria:** o balcão de um mercador numa cidade portuária sombria. As mercadorias ficam sobre prateleiras de madeira, com etiqueta de preço; a sacola é um livro-caixa de pergaminho, com traço duplo sob o total; o checkout é marcado por um selo de cera, a única animação da página. Os valores aparecem em moedas de ouro, e os rótulos seguem termos comuns de loja (Subtotal, Desconto, Total, Finalizar compra).
 - **Acessibilidade:** contraste AA, foco visível, controles com rótulos descritivos, valores lidos por extenso e anúncios das mudanças da sacola; animação desligada para quem prefere menos movimento.
 - **Responsivo:** no celular, as mercadorias ficam em duas colunas e uma barra fixa mostra o total e leva até a sacola.
