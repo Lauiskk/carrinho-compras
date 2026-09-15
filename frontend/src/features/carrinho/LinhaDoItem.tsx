@@ -55,7 +55,8 @@ export function LinhaDoItem({ item, somenteLeitura }: Props) {
       {!somenteLeitura && item.quantidade >= item.quantidadeEstoque && (
         <p className={styles.limite}>Todo o estoque disponível já está na sacola.</p>
       )}
-      <MensagemErro erro={alterar.error ?? remover.error} className={styles.erro} />
+      {/* Numa linha somente leitura (compra finalizada) não há ação a corrigir: o erro antigo não fica pendurado */}
+      {!somenteLeitura && <MensagemErro erro={alterar.error ?? remover.error} className={styles.erro} />}
     </li>
   )
 }
