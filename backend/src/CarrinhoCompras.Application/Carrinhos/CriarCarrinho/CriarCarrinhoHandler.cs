@@ -7,7 +7,7 @@ public sealed class CriarCarrinhoHandler(ICarrinhoRepository carrinhos, IUnitOfW
 {
     public async Task<CarrinhoResponse> HandleAsync(CancellationToken cancellationToken)
     {
-        var carrinho = Carrinho.Criar(timeProvider.GetUtcNow());
+        var carrinho = Carrinho.Criar(timeProvider.AgoraUtc());
 
         carrinhos.Adicionar(carrinho);
         await unitOfWork.CommitAsync(cancellationToken);

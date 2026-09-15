@@ -14,7 +14,7 @@ public sealed class FinalizarCarrinhoHandler(ICarrinhoRepository carrinhos, IUni
             return CarrinhoErros.NaoEncontrado(carrinhoId);
         }
 
-        var resultado = carrinho.Finalizar(timeProvider.GetUtcNow());
+        var resultado = carrinho.Finalizar(timeProvider.AgoraUtc());
         if (resultado.IsFailure)
         {
             return resultado.Error;
