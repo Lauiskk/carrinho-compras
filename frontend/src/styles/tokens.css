@@ -1,0 +1,55 @@
+/*
+ * O Corvo e a Balança: um balcão de mercador numa cidade portuária sombria.
+ * Névoa azul-ardósia no fundo, tábuas de madeira de naufrágio, livro-caixa de pergaminho,
+ * ouro de lanterna para preços, cera carmim para o selo e verdete para o estoque.
+ */
+:root {
+  color-scheme: dark;
+
+  /* Paleta */
+  --nevoa-profunda: #131c23;
+  --nevoa: #1e2a33;
+  --nevoa-clara: #2a3945;
+  --madeira-luz: #6a635a;
+  --madeira: #4b4640;
+  --madeira-sombra: #2f2b27;
+  --pergaminho: #dccda8;
+  --pergaminho-sombra: #c9b88f;
+  --tinta: #2e2433;
+  --tinta-suave: #493d47;
+  --ouro: #e0a142;
+  --ouro-claro: #f2c77f;
+  --latao: #8a5a14;
+  --cera: #962a36;
+  --cera-escura: #5e1520;
+  --cera-clara: #c0474f;
+  --cera-texto: #e58a8f;
+  --verdete: #6fa394;
+  --verdete-tinta: #24584a;
+  --texto: #ece5d3;
+  --texto-suave: #b8b1a0;
+
+  /* Tipografia */
+  --fonte-titulo: 'Grenze Gotisch Variable', Georgia, serif;
+  --fonte-texto: 'Alegreya Variable', Georgia, 'Times New Roman', serif;
+  --passo--1: 0.85rem;
+  --passo-0: 1rem;
+  --passo-1: 1.2rem;
+  --passo-2: 1.44rem;
+  --passo-3: 1.73rem;
+  --passo-4: 2.07rem;
+  --passo-5: 2.99rem;
+
+  /* Espaço */
+  --espaco-1: 0.25rem;
+  --espaco-2: 0.5rem;
+  --espaco-3: 0.75rem;
+  --espaco-4: 1rem;
+  --espaco-5: 1.5rem;
+  --espaco-6: 2rem;
+  --espaco-7: 2.75rem;
+  --espaco-8: 4rem;
+
+  /* Texturas: grão de papel/névoa gerado por ruído fractal (sem imagens externas) */
+  --grao: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
