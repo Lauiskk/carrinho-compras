@@ -1,0 +1,131 @@
+.mercadoria {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* Área acima da tábua: altura fixa para que as tábuas de uma mesma fileira fiquem alinhadas */
+.vitrine {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  height: 6.25rem;
+  padding-bottom: 0.1rem;
+}
+
+.icone {
+  width: 5.25rem;
+  height: 5.25rem;
+  color: var(--texto);
+  filter: drop-shadow(0 7px 5px rgb(0 0 0 / 0.5));
+}
+
+.icone :global(.acento) {
+  fill: var(--ouro);
+  stroke: var(--ouro);
+}
+
+.icone :global(.acento-traco) {
+  stroke: var(--ouro);
+}
+
+.icone :global(.liquido) {
+  fill: var(--cera-clara);
+  stroke: none;
+  opacity: 0.85;
+}
+
+.icone :global(.bolha) {
+  fill: var(--texto);
+  stroke: none;
+  opacity: 0.8;
+}
+
+.icone :global(.chama) {
+  fill: var(--ouro);
+  stroke: var(--ouro);
+  opacity: 0.9;
+}
+
+.icone :global(.dobra),
+.icone :global(.fio),
+.icone :global(.brilho) {
+  opacity: 0.45;
+}
+
+.icone :global(.rebite) {
+  fill: currentColor;
+  stroke: none;
+}
+
+/* A prateleira: segmentos contíguos formam uma tábua contínua em cada fileira */
+.tabua {
+  height: 0.9rem;
+  background:
+    repeating-linear-gradient(90deg, rgb(0 0 0 / 0.09) 0 1px, transparent 1px 29px),
+    linear-gradient(180deg, var(--madeira-luz) 0 2px, var(--madeira) 2px 72%, var(--madeira-sombra) 72%);
+  box-shadow: 0 14px 16px -10px rgb(0 0 0 / 0.75);
+}
+
+.conteudo {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  padding: 0 clamp(0.6rem, 2vw, var(--espaco-4));
+}
+
+/* Etiqueta de preço presa à borda da prateleira */
+.etiqueta {
+  align-self: flex-start;
+  margin-bottom: var(--espaco-3);
+  padding: 0.2rem 0.75rem 0.15rem 1.15rem;
+  color: var(--tinta);
+  background-color: var(--pergaminho);
+  background-image: var(--grao);
+  font-size: var(--passo-1);
+  font-weight: 800;
+  clip-path: polygon(0.65rem 0, 100% 0, 100% 100%, 0.65rem 100%, 0 50%);
+  --cor-moeda: var(--latao);
+}
+
+.nome {
+  font-size: var(--passo-1);
+  font-weight: 700;
+  line-height: 1.25;
+  text-wrap: balance;
+}
+
+.estoque {
+  margin-top: var(--espaco-1);
+  font-size: var(--passo--1);
+  color: var(--verdete);
+}
+
+.esgotado {
+  color: var(--cera-texto);
+}
+
+.naSacola {
+  color: var(--ouro-claro);
+}
+
+.acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espaco-2);
+  align-items: center;
+  margin-top: auto;
+  padding-top: var(--espaco-3);
+}
+
+/* O botão ocupa o espaço que sobra ao lado do seletor ou, quando quebra a linha, a largura toda */
+.adicionar {
+  flex: 1 0 auto;
+}
+
+.erro {
+  margin-top: var(--espaco-2);
+  font-size: var(--passo--1);
+  line-height: 1.4;
+  color: var(--cera-texto);
+}

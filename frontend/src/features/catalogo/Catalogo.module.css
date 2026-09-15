@@ -1,0 +1,51 @@
+.catalogo {
+  min-width: 0;
+}
+
+.titulo {
+  margin-bottom: var(--espaco-5);
+  font-family: var(--fonte-titulo);
+  font-size: var(--passo-4);
+  font-weight: 500;
+  line-height: 1.1;
+}
+
+/* Sem espaço horizontal entre as mercadorias: as tábuas se encostam e viram uma prateleira */
+.prateleiras {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 9.5rem), 1fr));
+  row-gap: var(--espaco-7);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 40rem) {
+  .prateleiras {
+    grid-template-columns: repeat(auto-fill, minmax(12.5rem, 1fr));
+  }
+}
+
+/* Aviso de compra encerrada: explica por que as mercadorias não podem ser adicionadas */
+.finalizada {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espaco-3);
+  margin-bottom: var(--espaco-6);
+  padding: var(--espaco-3) var(--espaco-4);
+  border: 1px solid rgb(229 138 143 / 0.45);
+  border-left: 4px solid var(--cera-clara);
+  background: rgb(150 42 54 / 0.16);
+}
+
+.aviso {
+  max-width: 36rem;
+  color: var(--texto-suave);
+}
+
+.aviso p + p,
+.aviso p + button {
+  margin-top: var(--espaco-3);
+}
