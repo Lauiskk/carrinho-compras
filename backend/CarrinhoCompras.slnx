@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/CarrinhoCompras.Api/CarrinhoCompras.Api.csproj" />
+    <Project Path="src/CarrinhoCompras.Application/CarrinhoCompras.Application.csproj" />
+    <Project Path="src/CarrinhoCompras.Domain/CarrinhoCompras.Domain.csproj" />
+    <Project Path="src/CarrinhoCompras.Infrastructure/CarrinhoCompras.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/CarrinhoCompras.Api.IntegrationTests/CarrinhoCompras.Api.IntegrationTests.csproj" />
+    <Project Path="tests/CarrinhoCompras.ArchitectureTests/CarrinhoCompras.ArchitectureTests.csproj" />
+    <Project Path="tests/CarrinhoCompras.Domain.Tests/CarrinhoCompras.Domain.Tests.csproj" />
+  </Folder>
+</Solution>

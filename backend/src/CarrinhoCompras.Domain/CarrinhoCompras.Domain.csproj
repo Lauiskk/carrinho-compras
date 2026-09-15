@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- O domínio não referencia nenhum pacote: regras de negócio puras, sem detalhes de infraestrutura -->
+
+</Project>
