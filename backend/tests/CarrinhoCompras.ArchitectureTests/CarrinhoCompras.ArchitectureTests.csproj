@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\CarrinhoCompras.Domain\CarrinhoCompras.Domain.csproj" />
+    <ProjectReference Include="..\..\src\CarrinhoCompras.Application\CarrinhoCompras.Application.csproj" />
+    <ProjectReference Include="..\..\src\CarrinhoCompras.Infrastructure\CarrinhoCompras.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\CarrinhoCompras.Api\CarrinhoCompras.Api.csproj" />
+  </ItemGroup>
+
+</Project>
