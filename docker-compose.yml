@@ -1,0 +1,60 @@
+name: carrinho-compras
+
+x-connection-string: &connection-string "Host=db;Port=5432;Database=${POSTGRES_DB:-carrinho_compras};Username=${POSTGRES_USER:-carrinho};Password=${POSTGRES_PASSWORD:-carrinho}"
+
+services:
+  db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-carrinho_compras}
+      POSTGRES_USER: ${POSTGRES_USER:-carrinho}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-carrinho}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      # A partir do PostgreSQL 18 a imagem guarda os dados em /var/lib/postgresql/<versão>/docker.
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # Aplica migrations e seed do catálogo uma vez e termina.
+  migrations:
+    build:
+      context: ./backend
+      target: migrations
+    environment:
+      ConnectionStrings__CarrinhoCompras: *connection-string
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    build:
+      context: ./backend
+      target: api
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__CarrinhoCompras: *connection-string
+      Documentacao__Habilitada: "true"
+    ports:
+      - "${API_PORT:-5080}:8080"
+    depends_on:
+      migrations:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ./frontend
+    ports:
+      - "${WEB_PORT:-3000}:8080"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  pgdata:
