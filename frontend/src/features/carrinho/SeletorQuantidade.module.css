@@ -1,0 +1,54 @@
+.seletor {
+  display: inline-flex;
+  align-items: stretch;
+  min-inline-size: auto;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--borda-seletor, rgb(236 229 211 / 0.35));
+  border-radius: 3px;
+  overflow: hidden;
+  background: var(--fundo-seletor, rgb(19 28 35 / 0.55));
+}
+
+.passo {
+  width: 2.3rem;
+  min-height: 2.6rem;
+  border: 0;
+  background: transparent;
+  font-size: 1.15rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.passo:not(:disabled):hover {
+  background: rgb(224 161 66 / 0.18);
+}
+
+.passo:disabled {
+  opacity: 0.35;
+}
+
+.valor {
+  display: grid;
+  place-items: center;
+  min-width: 2.2rem;
+  padding: 0 0.25rem;
+  font-weight: 700;
+  font-variant-numeric: lining-nums tabular-nums;
+  border-inline: 1px solid var(--borda-seletor, rgb(236 229 211 / 0.35));
+}
+
+/* Variante sobre o pergaminho do livro-caixa */
+.papel {
+  --borda-seletor: rgb(46 36 51 / 0.45);
+  --fundo-seletor: rgb(255 255 255 / 0.25);
+}
+
+.papel .passo:not(:disabled):hover {
+  background: rgb(46 36 51 / 0.1);
+}
+
+.compacto .passo {
+  width: 2rem;
+  min-height: 2.2rem;
+}

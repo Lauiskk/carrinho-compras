@@ -1,0 +1,43 @@
+.resumo {
+  margin: var(--espaco-5) 0 0;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.linha {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--espaco-3);
+  padding: 0.2rem 0;
+}
+
+.linha dt {
+  color: var(--tinta-suave);
+}
+
+.linha dd {
+  margin: 0;
+  font-weight: 600;
+  --cor-moeda: var(--latao);
+}
+
+/* Traço simples acima do total e traço duplo abaixo: a convenção contábil de "valor final" */
+.total {
+  margin-top: var(--espaco-2);
+  padding-top: var(--espaco-2);
+  border-top: 1px solid rgb(46 36 51 / 0.55);
+}
+
+.total dt {
+  color: var(--tinta);
+  font-family: var(--fonte-titulo);
+  font-size: var(--passo-2);
+  font-weight: 600;
+}
+
+.total dd {
+  padding-bottom: 0.1rem;
+  border-bottom: 4px double var(--tinta);
+  font-size: var(--passo-2);
+  font-weight: 800;
+}

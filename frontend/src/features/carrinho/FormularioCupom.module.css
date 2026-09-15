@@ -1,0 +1,64 @@
+.cupom {
+  margin-top: var(--espaco-5);
+}
+
+.aplicado {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espaco-2) var(--espaco-3);
+  margin-bottom: var(--espaco-3);
+}
+
+/* Pequeno lacre de cera marcando o cupom ativo */
+.lacre {
+  width: 1.1rem;
+  height: 1.1rem;
+  flex: none;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, var(--cera-clara), var(--cera) 55%, var(--cera-escura));
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.35);
+}
+
+.rotulo {
+  display: block;
+  margin-bottom: var(--espaco-1);
+  font-weight: 700;
+}
+
+.campoEBotao {
+  display: flex;
+  gap: var(--espaco-2);
+}
+
+.campo {
+  flex: 1;
+  min-width: 0;
+  min-height: 2.6rem;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid rgb(46 36 51 / 0.45);
+  border-radius: 3px;
+  background: rgb(255 255 255 / 0.3);
+  color: var(--tinta);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.campo::placeholder {
+  color: var(--tinta-suave);
+  text-transform: none;
+  letter-spacing: normal;
+  opacity: 0.85;
+}
+
+.campo[aria-invalid='true'] {
+  border-color: var(--cera);
+}
+
+.erro {
+  margin-top: var(--espaco-2);
+  font-size: var(--passo--1);
+  line-height: 1.4;
+  color: var(--cera);
+  font-weight: 600;
+}

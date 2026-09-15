@@ -1,0 +1,44 @@
+/* Resumo fixo no rodapé, só em telas estreitas (onde a sacola fica abaixo das prateleiras) */
+.barra {
+  position: fixed;
+  inset: auto 0 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espaco-3);
+  padding: var(--espaco-3) clamp(1rem, 4vw, 2rem) calc(var(--espaco-3) + env(safe-area-inset-bottom));
+  background: rgb(19 28 35 / 0.94);
+  border-top: 1px solid rgb(224 161 66 / 0.45);
+  backdrop-filter: blur(6px);
+  transition:
+    transform 200ms ease,
+    opacity 200ms ease;
+}
+
+.oculta {
+  transform: translateY(110%);
+  opacity: 0;
+}
+
+.resumo {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.3;
+}
+
+.unidades {
+  font-size: var(--passo--1);
+  color: var(--texto-suave);
+}
+
+.total {
+  font-weight: 700;
+  color: var(--ouro);
+}
+
+@media (min-width: 64rem) {
+  .barra {
+    display: none;
+  }
+}

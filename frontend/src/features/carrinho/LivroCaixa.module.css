@@ -1,0 +1,131 @@
+.sacola {
+  min-width: 0;
+  scroll-margin-top: var(--espaco-5);
+}
+
+@media (min-width: 64rem) {
+  .sacola {
+    position: sticky;
+    top: var(--espaco-5);
+  }
+}
+
+/* Página de pergaminho do livro-caixa */
+.livro {
+  position: relative;
+  padding: var(--espaco-6) var(--espaco-5) var(--espaco-6);
+  color: var(--tinta);
+  background-color: var(--pergaminho);
+  background-image: radial-gradient(ellipse 120% 90% at 50% 40%, transparent 55%, rgb(120 90 40 / 0.26) 100%);
+  border-radius: 2px;
+  box-shadow:
+    inset 0 0 0 1px rgb(46 36 51 / 0.1),
+    0 2px 0 var(--pergaminho-sombra),
+    0 28px 50px -24px rgb(0 0 0 / 0.85);
+}
+
+/* Fibra do papel: sutil, para não competir com os números */
+.livro::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background-image: var(--grao);
+  opacity: 0.18;
+  mix-blend-mode: multiply;
+  pointer-events: none;
+}
+
+.livro > :not(:global(.sr-only)) {
+  position: relative;
+}
+
+.selado {
+  animation: impacto 640ms ease-out both;
+}
+
+@keyframes impacto {
+  0%,
+  50% {
+    transform: translateY(0);
+  }
+  58% {
+    transform: translateY(3px);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+.cabecalho {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--espaco-1) var(--espaco-3);
+  padding-bottom: var(--espaco-3);
+  border-bottom: 2px solid rgb(46 36 51 / 0.65);
+}
+
+.titulo {
+  font-family: var(--fonte-titulo);
+  font-size: var(--passo-4);
+  font-weight: 600;
+  line-height: 1.05;
+}
+
+.titulo:focus {
+  outline: none;
+}
+
+.numero {
+  font-size: var(--passo--1);
+  color: var(--tinta-suave);
+  font-variant-numeric: lining-nums;
+}
+
+.aviso {
+  padding: var(--espaco-5) 0 var(--espaco-2);
+  color: var(--tinta-suave);
+}
+
+.itens {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.finalizar {
+  margin-top: var(--espaco-5);
+}
+
+/* O selo fica ao lado do encerramento, nunca sobre os valores */
+.encerramento {
+  position: relative;
+  min-height: 6.5rem;
+  margin-top: var(--espaco-6);
+  padding-right: 7rem;
+}
+
+.encerramento p {
+  margin-bottom: var(--espaco-3);
+  font-weight: 700;
+}
+
+.erro {
+  margin-top: var(--espaco-2);
+  font-size: var(--passo--1);
+  line-height: 1.4;
+  color: var(--cera);
+  font-weight: 600;
+}
+
+@media (max-width: 30rem) {
+  .livro {
+    padding-inline: var(--espaco-4);
+  }
+
+  .encerramento {
+    padding-right: 6rem;
+  }
+}
