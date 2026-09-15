@@ -1,0 +1,37 @@
+# Anotações pessoais e material do desafio (nunca versionar)
+_pessoal/
+
+# Variáveis de ambiente locais
+.env
+.env.*
+!.env.example
+
+# .NET
+bin/
+obj/
+artifacts/
+[Tt]est[Rr]esults/
+*.user
+*.suo
+*.rsuser
+*.DotSettings.user
+.vs/
+*.trx
+*.coverage
+coverage*.json
+coverage*.xml
+
+# Node / front-end
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+.vite/
+npm-debug.log*
+
+# IDEs e sistema operacional
+.idea/
+.vscode/*
+!.vscode/extensions.json
+.DS_Store
+Thumbs.db
