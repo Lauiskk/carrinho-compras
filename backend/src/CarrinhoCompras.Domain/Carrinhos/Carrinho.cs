@@ -48,6 +48,12 @@ public sealed class Carrinho
     public static Carrinho Criar(DateTimeOffset agora) => new(Guid.CreateVersion7(agora), agora);
 
     /// <summary>
+    /// Um carrinho finalizado não aceita alterações. Permite verificar isso antes de buscar outros dados
+    /// (produto, cupom), para que a resposta seja sempre "carrinho finalizado", qualquer que seja o pedido.
+    /// </summary>
+    public Result VerificarSePodeSerAlterado() => EstaFinalizado ? CarrinhoErros.Finalizado : Result.Success();
+
+    /// <summary>
     /// Adiciona o produto com a quantidade informada. Se o produto já estiver no carrinho, soma à quantidade existente.
     /// </summary>
     public Result AdicionarItem(Produto produto, int quantidade)

@@ -25,6 +25,17 @@ public sealed class FinalizacaoTests
     }
 
     [Fact]
+    public void Carrinho_aberto_pode_ser_alterado_e_finalizado_nao()
+    {
+        var carrinho = Dados.CarrinhoCom((Dados.Produto(), 1));
+        carrinho.VerificarSePodeSerAlterado().DeveTerSucesso();
+
+        carrinho.Finalizar(Dados.Agora).DeveTerSucesso();
+
+        carrinho.VerificarSePodeSerAlterado().DeveFalharCom(CarrinhoErros.Finalizado);
+    }
+
+    [Fact]
     public void Finalizar_carrinho_vazio_falha()
     {
         var carrinho = Dados.CarrinhoNovo();
