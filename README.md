@@ -330,7 +330,9 @@ e2e/                                   testes de navegador (Playwright) contra a
 - Remover cupom sem cupom aplicado não é erro (operação idempotente).
 - O percentual deve estar entre 0 (exclusivo) e 100.
 
-**Catálogo:** os arquivos `produtos.json` e `cupons.json` não vieram com o enunciado recebido, então foram criados com exatamente os campos pedidos (10 produtos de uma loja de suprimentos para aventureiros, e os cupons `10OFF` e `15OFF`). Há estoques baixos (1 a 3 unidades), para demonstrar o erro de estoque, e um preço de 33,33, para exercitar o arredondamento. Nenhum código depende desses valores: trocar os arquivos basta.
+**Catálogo:** os arquivos `produtos.json` e `cupons.json` não vieram com o enunciado recebido, então foram criados com exatamente os campos pedidos (10 produtos de uma loja de suprimentos para aventureiros, e os cupons `10OFF` e `15OFF`). Há estoques baixos (1 a 3 unidades), para demonstrar o erro de estoque, e um preço de 33,33, para exercitar o arredondamento.
+
+**Para usar os arquivos oficiais:** substitua `backend/src/CarrinhoCompras.Infrastructure/Persistence/Seed/produtos.json` e `cupons.json` (mesmos campos) e suba do zero com `docker compose down -v && docker compose up --build`. A aplicação — API e loja — não depende dos valores desses arquivos, e os testes de navegador escolhem as mercadorias pelo catálogo do momento. Dependem deles apenas a coleção de exemplos em `http/`, que usa os ids e preços do catálogo padrão para mostrar contas conhecidas, e um teste que trava o formato do enunciado (10 produtos e os cupons `10OFF` e `15OFF`).
 
 ---
 
