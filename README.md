@@ -2,6 +2,8 @@
 
 API REST de carrinho de compras em **.NET 10** (ASP.NET Core + EF Core + PostgreSQL) com um front-end **React** que a consome: catálogo com estoque, sacola com itens e quantidades, cupom de desconto, cálculo de subtotal/desconto/total e checkout.
 
+O estoque é **reservado enquanto a mercadoria está na sacola**: ela sai da vitrine para todo mundo, volta se o item sair ou se a sacola ficar parada além do prazo, e vira baixa definitiva no checkout.
+
 ![Loja com itens na sacola e cupom aplicado](docs/imagens/loja.jpg)
 
 ## Sumário
@@ -96,6 +98,11 @@ O Vite repassa as chamadas `/api` para `http://localhost:5080` (sem CORS). Para 
   dotnet ef database update --project src/CarrinhoCompras.Infrastructure --startup-project src/CarrinhoCompras.Api
   ```
 - **Catálogo:** `backend/src/CarrinhoCompras.Infrastructure/Persistence/Seed/produtos.json` e `cupons.json`. Ao aplicar as migrations, o catálogo do banco é sincronizado com esses arquivos pelo `id` (insere o que falta, atualiza o que mudou). Para usar outros dados, basta substituir os arquivos e rodar as migrations de novo.
+- **Reposição do catálogo:** o seed devolve `QuantidadeEstoque` aos valores do JSON (as compras finalizadas baixam o estoque de verdade). Para repor a loja, rode as migrations de novo — com a API parada, porque o seed não sobrescreve um sistema em uso:
+  ```bash
+  docker compose stop api && docker compose up -d --force-recreate migrations && docker compose start api
+  ```
+- **Prazo da reserva:** `Carrinho:JanelaDeReserva` (variável `Carrinho__JanelaDeReserva`, formato `hh:mm:ss`). O padrão de negócio é **15 minutos**; o `docker compose` usa **2 minutos** (`RESERVA_JANELA` no `.env`) para dar para ver a reserva voltar à vitrine sem esperar.
 - **Consultas manuais:** as tabelas e colunas usam PascalCase, então no PostgreSQL vão entre aspas:
   ```bash
   docker compose exec db psql -U carrinho -d carrinho_compras -c 'SELECT * FROM "Produto";'
@@ -112,11 +119,11 @@ cd frontend && npm run test:run                             # front-end
 
 | Suíte | Testes | O que cobre |
 |---|---:|---|
-| `CarrinhoCompras.Domain.Tests` | 69 | Regras e cálculos: carrinho vazio, com e sem cupom, quantidades alteradas, troca de cupom, arredondamento, estoque (inclusive overflow), bloqueio após checkout |
+| `CarrinhoCompras.Domain.Tests` | 86 | Regras e cálculos: carrinho vazio, com e sem cupom, quantidades alteradas, troca de cupom, arredondamento, **reserva e devolução de estoque**, expiração da sacola, bloqueio após checkout |
 | `CarrinhoCompras.ArchitectureTests` | 8 | O domínio não depende de nenhuma outra camada nem de pacotes; a Application não depende de EF Core/ASP.NET |
-| `CarrinhoCompras.Api.IntegrationTests` | 77 | A API real contra PostgreSQL real: catálogo igual ao JSON, nomes e tipos das colunas, fluxos, **formato de todos os erros**, concorrência, OpenAPI |
-| Front-end (Vitest) | 24 | Cliente HTTP, formatação, componentes e o fluxo completo da página com a API simulada |
-| Interface (Playwright) | 9 | O navegador contra a stack de verdade — ver abaixo |
+| `CarrinhoCompras.Api.IntegrationTests` | 82 | A API real contra PostgreSQL real: catálogo igual ao JSON, nomes e tipos das colunas, fluxos, **formato de todos os erros**, reserva de estoque sob requisições simultâneas, concorrência, OpenAPI |
+| Front-end (Vitest) | 25 | Cliente HTTP, formatação, componentes e o fluxo completo da página com a API simulada |
+| Interface (Playwright) | 11 | O navegador contra a stack de verdade — ver abaixo |
 
 Os testes de integração sobem um PostgreSQL descartável com **Testcontainers** (precisa de Docker). Sem Docker, dá para apontar para um PostgreSQL existente com a variável `TESTES_POSTGRES_CONNECTION_STRING` (use um banco dedicado a testes).
 
@@ -131,7 +138,7 @@ npm run navegadores   # baixa o Chromium, só na primeira vez
 npm test
 ```
 
-São nove cenários no navegador, contra o nginx, a API e o PostgreSQL reais: o fluxo completo (catálogo → somar → alterar → remover → cupom → troca de cupom → checkout), com **subtotal, desconto e total conferidos por uma conta feita dentro do próprio teste**; cupom inexistente que não derruba o cupom anterior; limite de estoque; sacola que sobrevive ao recarregamento; **duas abas** disputando a última unidade e depois um carrinho finalizado; celular; e uma compra feita **só com o teclado**. Os elementos são procurados por papel e rótulo acessível, então a suíte também protege a acessibilidade.
+São onze cenários no navegador, contra o nginx, a API e o PostgreSQL reais: o fluxo completo (catálogo → somar → alterar → remover → cupom → troca de cupom → checkout), com **subtotal, desconto e total conferidos por uma conta feita dentro do próprio teste**; cupom inexistente que não derruba o cupom anterior; limite de estoque; a vitrine perdendo e recuperando unidades conforme a sacola; sacola que sobrevive ao recarregamento; **duas abas** disputando a última unidade e depois um carrinho finalizado; celular; e uma compra feita **só com o teclado**. Os elementos são procurados por papel e rótulo acessível, então a suíte também protege a acessibilidade.
 
 Para rodar contra o modo local (`dotnet run` + `npm run dev`): `E2E_BASE_URL=http://localhost:5173 npm test`.
 
@@ -143,7 +150,7 @@ Base: `/api`. Documentação interativa em `/swagger`.
 
 | Método | Rota | Descrição | Sucesso |
 |---|---|---|---|
-| `GET` | `/produtos` | Lista o catálogo (preço líquido e estoque) | 200 |
+| `GET` | `/produtos` | Lista o catálogo (preço líquido, estoque, reservado e disponível) | 200 |
 | `GET` | `/produtos/{produtoId}` | Obtém um produto | 200 |
 | `POST` | `/carrinhos` | Cria um carrinho vazio | 201 + `Location` |
 | `GET` | `/carrinhos/{carrinhoId}` | Obtém o carrinho com itens, cupom e valores | 200 |
@@ -166,6 +173,7 @@ Toda alteração devolve o **carrinho completo já recalculado**:
       "descricaoProduto": "Poção de Cura Menor",
       "precoLiquidoUnitario": 25.00,
       "quantidadeEstoque": 12,
+      "quantidadeDisponivel": 9,
       "quantidade": 3,
       "precoItem": 75.00
     }
@@ -175,7 +183,8 @@ Toda alteração devolve o **carrinho completo já recalculado**:
   "desconto": 7.50,
   "total": 67.50,
   "criadoEm": "2026-09-15T20:46:09.664831+00:00",
-  "finalizadoEm": null
+  "finalizadoEm": null,
+  "expiraEm": "2026-09-15T21:01:09.664831+00:00"
 }
 ```
 
@@ -204,6 +213,7 @@ Erros de validação trazem também `errors`, por campo: `{ "quantidade": ["A qu
 | 404 | `carrinho.item_nao_encontrado` | Alterar ou remover um produto que não está no carrinho |
 | 404 / 405 / 415 | `recurso.nao_encontrado`, `metodo.nao_permitido`, `midia.nao_suportada` | Rota inexistente, método não suportado, corpo que não é JSON |
 | 409 | `carrinho.finalizado` | Qualquer alteração em carrinho finalizado |
+| 409 | `carrinho.expirado` | Qualquer alteração em carrinho cuja reserva venceu |
 | 409 | `carrinho.conflito_concorrencia` | Outra requisição alterou o mesmo carrinho ao mesmo tempo |
 | 422 | `produto.estoque_insuficiente` | Quantidade resultante maior que o estoque |
 | 422 | `cupom.invalido` | Cupom inexistente |
@@ -238,7 +248,7 @@ flowchart LR
 
 - **Domain** — entidades e regras de negócio, **sem nenhum pacote**: o agregado `Carrinho` concentra itens, estoque, cupom, cálculos e finalização.
 - **Application** — um handler por caso de uso, que carrega o agregado, chama a regra do domínio e grava; validadores de entrada (FluentValidation); interfaces de repositório.
-- **Infrastructure** — `DbContext`, mapeamentos (Fluent API), migrations, seed do catálogo e repositórios.
+- **Infrastructure** — `DbContext`, mapeamentos (Fluent API), migrations, seed do catálogo, repositórios e o serviço em segundo plano que devolve as reservas vencidas (o *quando* é detalhe de execução; o *o quê* é um caso de uso da Application).
 - **Api** — controllers finos, tradução de resultados para HTTP e padronização de erros.
 
 Um teste de arquitetura garante essas dependências. Fluxo de uma requisição:
@@ -265,10 +275,11 @@ e2e/                                   testes de navegador (Playwright) contra a
 ## Decisões de design
 
 **Modelagem de produto, estoque e carrinho**
-- **`Produto`** (`ID`, `DescricaoProduto`, `PrecoLiquido`, `QuantidadeEstoque`) vem do catálogo e é somente leitura para a API: nenhum endpoint altera preço ou estoque.
-- **Estoque é um limite, não uma reserva:** a validação compara a **quantidade resultante** do item no carrinho (atual + adicionada, ou a nova quantidade substituída) com `QuantidadeEstoque`. A soma é feita em `long`, para uma quantidade enorme não estourar o inteiro e passar na validação.
-- **`Carrinho`** é a raiz do agregado: status (`Aberto`/`Finalizado`), no máximo um cupom, subtotal, desconto e total. **`ItemCarrinho`** guarda produto, quantidade, preço unitário e preço do item (preço unitário × quantidade), com uma linha por produto.
-- As respostas expõem, para o produto, `precoLiquido` e `quantidadeEstoque` e, para o item, `precoLiquidoUnitario` e `quantidadeEstoque` (estoque atual do produto).
+- **`Produto`** (`ID`, `DescricaoProduto`, `PrecoLiquido`, `QuantidadeEstoque`) vem do catálogo; preço e descrição são somente leitura para a API. O estoque tem **dois números**: `QuantidadeEstoque` são as peças físicas da loja e `QuantidadeReservada` as que estão presas em sacolas abertas. A vitrine mostra a diferença, `QuantidadeDisponivel`.
+- **Estoque é reserva, não só limite:** entrar na sacola **prende** unidades (somem da vitrine para todo mundo); sair dela, diminuir a quantidade ou deixar a sacola vencer **devolve**; o checkout **confirma a venda** (o físico cai e não volta). Sem isso, duas sacolas levavam a mesma última unidade e as duas finalizavam.
+- **Um prazo, porque reserva sem prazo é estoque parado:** enquanto tem itens, a sacola aberta guarda um `ExpiraEm`, renovado a cada alteração. Vencido, as unidades voltam e o carrinho fica `Expirado`. A janela é configurável (`Carrinho:JanelaDeReserva`), porque "quanto tempo a loja segura uma peça" é decisão comercial — uma bilheteria segura por minutos, um supermercado nem segura.
+- **`Carrinho`** é a raiz do agregado: status (`Aberto`/`Finalizado`/`Expirado`), no máximo um cupom, subtotal, desconto e total. **`ItemCarrinho`** guarda produto, quantidade, preço unitário e preço do item (preço unitário × quantidade), com uma linha por produto.
+- As respostas expõem, para o produto, `precoLiquido`, `quantidadeEstoque`, `quantidadeReservada` e `quantidadeDisponivel`; para o item, `precoLiquidoUnitario`, `quantidadeEstoque` e `quantidadeDisponivel` (quanto ainda dá para somar àquela linha).
 
 **Modelagem e regras**
 - **Domínio rico:** estado com setters privados, e toda alteração passa por métodos do `Carrinho`, que validam e **sempre recalculam** subtotal, desconto e total. Não há outro caminho para mudar um item.
@@ -282,7 +293,10 @@ e2e/                                   testes de navegador (Playwright) contra a
 - **Carrinho persistido com seus valores:** a tabela `Carrinho` guarda status, cupom, subtotal, desconto e total; cada item guarda o preço unitário do momento. Um carrinho finalizado mantém exatamente os valores do checkout.
 - **Seed com `UseSeeding`/`UseAsyncSeeding`** a partir dos JSON embutidos (upsert por id, idempotente). Com `HasData` os valores fariam parte do modelo, e trocar o JSON sem criar uma migration faria o EF Core 9+ recusar a migração.
 - **Chave composta `(CarrinhoID, ProdutoID)`:** o banco também garante uma linha por produto em cada carrinho.
-- **Concorrência otimista** com a coluna de sistema `xmin` do PostgreSQL: duas requisições simultâneas no mesmo carrinho não perdem atualizações; a que perde recebe 409.
+- **Concorrência, com duas estratégias diferentes de propósito:**
+  - no **carrinho**, otimista (`xmin` do PostgreSQL): duas requisições no mesmo carrinho não perdem atualizações; a que perde recebe 409. Conflito ali é raro e o cliente só recarrega.
+  - no **estoque**, pessimista: antes de reservar, a operação toma `SELECT ... FOR UPDATE` nas linhas dos produtos envolvidos, **sempre em ordem de ID** (nunca há espera circular). Requisições simultâneas pelo mesmo produto **esperam** em vez de falhar — numa loja, o item concorrido é justamente o que mais daria 409. O `xmin` também está no `Produto`, como rede de segurança: se algum caminho esquecer o bloqueio, aparece um conflito em vez de venda duplicada silenciosa.
+- **Devolução automática:** um serviço em segundo plano varre as sacolas vencidas a cada 30 s, uma transação por carrinho, para que um conflito com quem estiver usando aquela sacola não pare a varredura. A consulta ao carrinho continua sendo **leitura pura** — quem devolve as unidades é a varredura ou a própria tentativa de alterar.
 - **Id do carrinho em UUID v7** (ordenável, bom para índice, e não "adivinhável" como um sequencial).
 
 **API**
@@ -301,7 +315,7 @@ e2e/                                   testes de navegador (Playwright) contra a
 
 1. **Adicionar produto:** o enunciado recebe "produto + quantidade" e diz que um produto novo "entra com quantidade 1". A quantidade é **opcional, com padrão 1**: um produto novo entra com a quantidade enviada (1 se omitida) e um produto existente **soma** a quantidade. Assim nenhuma entrada é ignorada, e o exemplo do enunciado (1 + 1 = 2) continua valendo.
 2. **Remover** retira a linha inteira do produto.
-3. **Estoque** limita a quantidade de cada produto **por carrinho**. O checkout **não baixa o estoque**: o enunciado não pede isso e o banco deve manter os valores do catálogo (ver [Próximos passos](#próximos-passos)).
+3. **Estoque é reservado** enquanto a mercadoria está na sacola e **baixa de verdade** no checkout. O enunciado só exige recusar quantidade acima do disponível, o que já estaria atendido com uma validação simples; a reserva foi além de propósito, porque sem ela duas sacolas podiam levar a mesma última peça. Uma **sacola expirada é terminal**: os itens continuam à vista, mas ela não volta a valer — a tela oferece começar outra.
 4. **Preço do item:** o preço unitário é registrado ao adicionar ou alterar o item; os totais gravados preservam os valores do checkout.
 5. **Checkout de carrinho vazio** não é permitido (422).
 6. **Carrinho finalizado** rejeita qualquer alteração com 409, inclusive finalizar de novo. Essa verificação vem antes das demais: tentar adicionar um produto inexistente a um carrinho finalizado também devolve "carrinho finalizado".
@@ -326,12 +340,14 @@ e2e/                                   testes de navegador (Playwright) contra a
 
 - **O front nunca calcula dinheiro:** exibe exatamente o que a API devolve. Cada alteração substitui o estado local pelo carrinho recalculado.
 - **TanStack Query** cuida do estado do servidor; as alterações do carrinho são **enfileiradas** (uma de cada vez, na ordem dos cliques), e um carrinho só é criado na primeira ação.
-- **Erros aparecem junto da ação que falhou**, com a mensagem da API (estoque, cupom inválido, carrinho finalizado). Depois de uma recusa, a sacola é recarregada do servidor: se outra aba alterou ou finalizou o carrinho, a tela mostra o estado real.
+- **A reserva é visível:** a sacola diz por quanto tempo o mercador guarda as peças, e a prateleira mostra o disponível caindo assim que algo entra na sacola — sem essa linha, o número mudaria sozinho e ninguém entenderia por quê. Vencido o prazo, a tela avisa que as mercadorias voltaram para a loja.
+- **Erros aparecem junto da ação que falhou**, com a mensagem da API (estoque, cupom inválido, carrinho finalizado ou expirado). Depois de uma recusa, a sacola é recarregada do servidor: se outra aba alterou ou finalizou o carrinho, a tela mostra o estado real.
 - **Identidade visual própria:** o balcão de um mercador numa cidade portuária sombria. As mercadorias ficam sobre prateleiras de madeira, com etiqueta de preço; a sacola é um livro-caixa de pergaminho, com traço duplo sob o total; o checkout é marcado por um selo de cera, a única animação da página. Os valores aparecem em moedas de ouro, e os rótulos seguem termos comuns de loja (Subtotal, Desconto, Total, Finalizar compra).
 - **Acessibilidade:** contraste AA, foco visível, controles com rótulos descritivos, valores lidos por extenso e anúncios das mudanças da sacola; animação desligada para quem prefere menos movimento.
 - **Responsivo:** no celular, as mercadorias ficam em duas colunas e uma barra fixa mostra o total e leva até a sacola.
 
-<img src="docs/imagens/celular.jpg" alt="Loja no celular" width="300">
+<img src="docs/imagens/reserva.jpg" alt="Livro-caixa com itens, cupom, totais e o prazo da reserva" width="330">
+<img src="docs/imagens/celular.jpg" alt="Loja no celular" width="270">
 
 ---
 
@@ -339,8 +355,10 @@ e2e/                                   testes de navegador (Playwright) contra a
 
 Todos os requisitos do enunciado e os diferenciais estão implementados. Evoluções naturais:
 
-- **Estoque transacional:** reservar ou baixar o estoque no checkout, com revalidação e concorrência otimista também na tabela `Produto`.
+- **Reserva que sobrevive ao vencimento:** hoje a sacola vencida é terminal. O passo natural é manter os itens e tentar reservá-los de novo quando a pessoa voltar, avisando só o que não couber mais.
+- **Devolver ao estoque no cancelamento/estorno:** existe finalizar, não existe desfazer.
 - **Autenticação e dono do carrinho**, para que só quem criou o carrinho possa acessá-lo.
+- **Vitrine ao vivo:** hoje a prateleira é atualizada a cada ação da própria pessoa; a reserva de outra sacola só aparece no próximo carregamento. Um polling curto ou SSE mostraria o estoque mudando em tempo real.
 - **Cupons mais completos:** validade, valor mínimo e limite de uso, com o percentual aplicado registrado no carrinho.
 - **Chaves de idempotência** nas operações de escrita, para repetições seguras de rede.
 - **Observabilidade:** OpenTelemetry (traces e métricas) e logs estruturados.
