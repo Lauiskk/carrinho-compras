@@ -35,7 +35,8 @@ export function LinhaDoItem({ item, somenteLeitura }: Props) {
               superficie="papel"
               compacto
               valor={item.quantidade}
-              maximo={item.quantidadeEstoque}
+              // O que já está nesta linha continua reservado por ela; o disponível é o que ainda dá para somar.
+              maximo={item.quantidade + item.quantidadeDisponivel}
               onAlterar={(quantidade) => alterar.mutate({ produtoId: item.produtoId, quantidade })}
               rotulo={item.descricaoProduto}
               desabilitado={ocupado}
@@ -52,7 +53,7 @@ export function LinhaDoItem({ item, somenteLeitura }: Props) {
         )}
       </div>
 
-      {!somenteLeitura && item.quantidade >= item.quantidadeEstoque && (
+      {!somenteLeitura && item.quantidadeDisponivel === 0 && (
         <p className={styles.limite}>Todo o estoque disponível já está na sacola.</p>
       )}
       {/* Numa linha somente leitura (compra finalizada) não há ação a corrigir: o erro antigo não fica pendurado */}

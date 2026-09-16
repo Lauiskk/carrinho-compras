@@ -1,0 +1,33 @@
+/* Linha discreta: informa a reserva sem competir com os números do livro-caixa. */
+.prazo {
+  display: flex;
+  align-items: center;
+  gap: var(--espaco-2);
+  margin: var(--espaco-3) 0 0;
+  padding-top: var(--espaco-3);
+  border-top: 1px dotted rgb(46 36 51 / 0.25);
+  font-size: var(--passo--1);
+  line-height: 1.4;
+  color: var(--verdete-tinta);
+}
+
+.prazo strong {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Ampulheta desenhada em CSS: dois triângulos encostados pela ponta. */
+.ampulheta {
+  flex: none;
+  width: 0.5rem;
+  height: 0.75rem;
+  background:
+    linear-gradient(to bottom left, transparent 49.5%, currentColor 50%) top / 100% 50% no-repeat,
+    linear-gradient(to top left, transparent 49.5%, currentColor 50%) bottom / 100% 50% no-repeat;
+  opacity: 0.75;
+}
+
+/* Prazo vencido: a sacola está prestes a ser recolhida pelo servidor. */
+.vencendo {
+  color: var(--cera);
+}

@@ -10,7 +10,9 @@ export function Catalogo() {
   const produtos = useProdutos()
   const { carrinho } = useCarrinho()
   const { esquecerCarrinho } = useCarrinhoContexto()
-  const compraFinalizada = carrinho?.status === 'Finalizado'
+  const finalizada = carrinho?.status === 'Finalizado'
+  const expirada = carrinho?.status === 'Expirado'
+  const encerrada = finalizada || expirada
 
   const quantidadeNaSacola = (produtoId: number) =>
     carrinho?.itens.find((item) => item.produtoId === produtoId)?.quantidade ?? 0
@@ -21,11 +23,15 @@ export function Catalogo() {
         Mercadorias
       </h2>
 
-      {compraFinalizada && (
+      {encerrada && (
         <div className={styles.finalizada}>
-          <p>Esta compra foi finalizada e não aceita novas mercadorias.</p>
+          <p>
+            {finalizada
+              ? 'Esta compra foi finalizada e não aceita novas mercadorias.'
+              : 'Sua sacola expirou e as mercadorias voltaram para a loja.'}
+          </p>
           <Botao variante="latao" onClick={esquecerCarrinho}>
-            Nova compra
+            {finalizada ? 'Nova compra' : 'Começar de novo'}
           </Botao>
         </div>
       )}
@@ -49,7 +55,7 @@ export function Catalogo() {
               key={produto.id}
               produto={produto}
               quantidadeNaSacola={quantidadeNaSacola(produto.id)}
-              compraFinalizada={compraFinalizada}
+              compraFinalizada={encerrada}
             />
           ))}
         </ul>

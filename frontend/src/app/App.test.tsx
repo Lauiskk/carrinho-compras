@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import type { Carrinho } from '../api/tipos'
 import { carrinhoIdStorage } from '../features/carrinho/carrinhoIdStorage'
-import { botas, carrinhoVazio, pocao, problema } from '../test/dados'
+import { botas, carrinhoVazio, item, pocao, problema } from '../test/dados'
 import { renderizar } from '../test/renderizar'
 import { servidor } from '../test/servidor'
 import { App } from './App'
@@ -26,7 +26,7 @@ function simularApi() {
     http.get(base, () => HttpResponse.json(carrinho)),
     http.post(`${base}/itens`, () =>
       atualizar({
-        itens: [{ produtoId: 1, descricaoProduto: pocao.descricaoProduto, precoLiquidoUnitario: 25, quantidadeEstoque: 12, quantidade: 2, precoItem: 50 }],
+        itens: [item(pocao, 2)],
         subtotal: 50,
         total: 50,
       }),
@@ -102,7 +102,7 @@ describe('Fluxo completo da loja', () => {
     expect(await within(sacola).findByText(/Sua sacola está vazia/)).toBeInTheDocument()
 
     carrinhoNoServidor = carrinhoVazio({
-      itens: [{ produtoId: 8, descricaoProduto: botas.descricaoProduto, precoLiquidoUnitario: 120, quantidadeEstoque: 2, quantidade: 2, precoItem: 240 }],
+      itens: [item(botas, 2)],
       subtotal: 240,
       total: 240,
     })
@@ -114,9 +114,10 @@ describe('Fluxo completo da loja', () => {
     expect(within(sacola).getByText('Total').nextElementSibling).toHaveTextContent('240,00 moedas de ouro')
   })
 
-  it('não deixa preso na prateleira o erro de um carrinho que não existe mais', async () => {
+  it('explica em bom português quando a sacola guardada não existe mais', async () => {
     // O id guardado no navegador aponta para um carrinho que o servidor perdeu entre a leitura e o clique
-    // (ex.: banco de desenvolvimento recriado). A sacola recomeça do zero, então a mensagem não faz mais sentido.
+    // (ex.: banco de desenvolvimento recriado). A pessoa precisa saber o que houve — não pode falhar calada,
+    // nem mostrar o id técnico do carrinho.
     const carrinho = carrinhoVazio()
     carrinhoIdStorage.gravar(carrinho.id)
     servidor.use(
@@ -131,10 +132,38 @@ describe('Fluxo completo da loja', () => {
 
     await usuario.click(await screen.findByRole('button', { name: `Adicionar ${pocao.descricaoProduto} à sacola` }))
 
-    await waitFor(() => expect(carrinhoIdStorage.ler()).toBeNull())
     const produto = screen.getByRole('heading', { name: pocao.descricaoProduto }).closest('li') as HTMLElement
-    await waitFor(() => expect(within(produto).queryByRole('alert')).not.toBeInTheDocument())
-    expect(within(screen.getByRole('complementary', { name: 'Sua sacola' })).getByText(/Sua sacola está vazia/)).toBeInTheDocument()
+    const aviso = await within(produto).findByRole('alert')
+    expect(aviso).toHaveTextContent('Sua sacola anterior não existe mais.')
+    expect(aviso).not.toHaveTextContent(carrinho.id)
+    await waitFor(() => expect(carrinhoIdStorage.ler()).toBeNull())
+  })
+
+  it('mostra a sacola recolhida quando a reserva expira', async () => {
+    const expirado = carrinhoVazio({
+      status: 'Expirado',
+      itens: [item(pocao, 2)],
+      subtotal: 50,
+      total: 50,
+      expiraEm: null,
+    })
+    carrinhoIdStorage.gravar(expirado.id)
+    servidor.use(
+      http.get('/api/produtos', () => HttpResponse.json([pocao, botas])),
+      http.get(`/api/carrinhos/${expirado.id}`, () => HttpResponse.json(expirado)),
+    )
+    renderizar(<App />)
+
+    const sacola = screen.getByRole('complementary', { name: 'Sua sacola' })
+    expect(await within(sacola).findByText(/O mercador recolheu estas peças/)).toBeInTheDocument()
+    // Nada de alterar: nem cupom, nem quantidade, nem checkout.
+    expect(within(sacola).queryByRole('textbox')).not.toBeInTheDocument()
+    expect(within(sacola).queryByRole('button', { name: 'Finalizar compra' })).not.toBeInTheDocument()
+    expect(within(sacola).queryByRole('button', { name: `Remover ${pocao.descricaoProduto} da sacola` })).not.toBeInTheDocument()
+    // Na prateleira, não no anúncio para leitor de tela (que repete o mesmo texto).
+    const prateleiras = screen.getByRole('region', { name: 'Mercadorias' })
+    expect(within(prateleiras).getByText('Sua sacola expirou e as mercadorias voltaram para a loja.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: `Adicionar ${pocao.descricaoProduto} à sacola` })).toBeDisabled()
   })
 
   it('avisa quando a API está fora do ar', async () => {

@@ -18,8 +18,9 @@ export function Mercadoria({ produto, quantidadeNaSacola, compraFinalizada }: Pr
   const [quantidade, setQuantidade] = useState(1)
   const adicionar = useAdicionarItem()
 
-  // Limite de interface para evitar um clique que já sabemos que falharia; a API continua validando o estoque.
-  const disponivel = Math.max(produto.quantidadeEstoque - quantidadeNaSacola, 0)
+  // O disponível já vem da API descontando tudo o que está reservado — inclusive o que está nesta sacola.
+  // É limite de interface para evitar um clique que já sabemos que falharia; a API continua validando.
+  const disponivel = produto.quantidadeDisponivel
   const quantidadeEscolhida = Math.min(quantidade, Math.max(disponivel, 1))
   const podeAdicionar = !compraFinalizada && disponivel > 0 && !adicionar.isPending
 
@@ -41,8 +42,8 @@ export function Mercadoria({ produto, quantidadeNaSacola, compraFinalizada }: Pr
           <Moeda valor={produto.precoLiquido} />
         </p>
         <h3 className={styles.nome}>{produto.descricaoProduto}</h3>
-        <p className={`${styles.estoque} ${produto.quantidadeEstoque === 0 ? styles.esgotado : ''}`}>
-          <TextoEstoque estoque={produto.quantidadeEstoque} />
+        <p className={`${styles.estoque} ${disponivel === 0 && quantidadeNaSacola === 0 ? styles.esgotado : ''}`}>
+          <TextoEstoque disponivel={disponivel} />
           {quantidadeNaSacola > 0 && <span className={styles.naSacola}> ({quantidadeNaSacola} na sacola)</span>}
         </p>
 
@@ -71,10 +72,10 @@ export function Mercadoria({ produto, quantidadeNaSacola, compraFinalizada }: Pr
   )
 }
 
-function TextoEstoque({ estoque }: { estoque: number }) {
-  if (estoque === 0) {
+function TextoEstoque({ disponivel }: { disponivel: number }) {
+  if (disponivel === 0) {
     return <>Esgotado</>
   }
 
-  return <>{estoque === 1 ? 'Última unidade em estoque' : `${estoque} em estoque`}</>
+  return <>{disponivel === 1 ? 'Última unidade em estoque' : `${disponivel} em estoque`}</>
 }

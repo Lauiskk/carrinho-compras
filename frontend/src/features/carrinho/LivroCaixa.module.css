@@ -99,6 +99,11 @@
   margin-top: var(--espaco-5);
 }
 
+/* Aviso de sacola recolhida: mesmo peso do texto do encerramento, sem alarme. */
+.expirada {
+  color: var(--cera-escura);
+}
+
 /* O selo fica ao lado do encerramento, nunca sobre os valores */
 .encerramento {
   position: relative;

@@ -5,6 +5,7 @@ import { MensagemErro } from '../../shared/MensagemErro'
 import { useCarrinhoContexto } from './carrinhoContexto'
 import { FormularioCupom } from './FormularioCupom'
 import { LinhaDoItem } from './LinhaDoItem'
+import { PrazoDaReserva } from './PrazoDaReserva'
 import styles from './LivroCaixa.module.css'
 import { ResumoValores } from './ResumoValores'
 import { SeloDeCera } from './SeloDeCera'
@@ -20,6 +21,9 @@ export function LivroCaixa() {
 
   const itens = carrinho?.itens ?? []
   const finalizado = carrinho?.status === 'Finalizado'
+  const expirado = carrinho?.status === 'Expirado'
+  // Finalizada ou expirada, a sacola não aceita mais nenhuma alteração.
+  const encerrada = finalizado || expirado
 
   return (
     <aside id={ID_SACOLA} className={styles.sacola} aria-labelledby={ID_TITULO_SACOLA}>
@@ -49,12 +53,12 @@ export function LivroCaixa() {
         {itens.length > 0 && (
           <ul className={styles.itens}>
             {itens.map((item) => (
-              <LinhaDoItem key={item.produtoId} item={item} somenteLeitura={finalizado} />
+              <LinhaDoItem key={item.produtoId} item={item} somenteLeitura={encerrada} />
             ))}
           </ul>
         )}
 
-        {!finalizado && <FormularioCupom cupom={carrinho?.cupom ?? null} />}
+        {!encerrada && <FormularioCupom cupom={carrinho?.cupom ?? null} />}
 
         <ResumoValores
           subtotal={carrinho?.subtotal ?? 0}
@@ -63,7 +67,7 @@ export function LivroCaixa() {
           cupom={carrinho?.cupom ?? null}
         />
 
-        {finalizado ? (
+        {finalizado && (
           <div className={styles.encerramento}>
             {carrinho.finalizadoEm && <p>Compra finalizada em {formatarDataHora(carrinho.finalizadoEm)}.</p>}
             <Botao variante="tinta" onClick={esquecerCarrinho}>
@@ -71,8 +75,22 @@ export function LivroCaixa() {
             </Botao>
             <SeloDeCera />
           </div>
-        ) : (
+        )}
+
+        {expirado && (
+          <div className={styles.encerramento}>
+            <p className={styles.expirada}>
+              O mercador recolheu estas peças: a sacola ficou parada tempo demais e elas voltaram para a loja.
+            </p>
+            <Botao variante="tinta" onClick={esquecerCarrinho}>
+              Começar de novo
+            </Botao>
+          </div>
+        )}
+
+        {!encerrada && (
           <div className={styles.finalizar}>
+            {carrinho?.expiraEm && <PrazoDaReserva key={carrinho.expiraEm} expiraEm={carrinho.expiraEm} />}
             <Botao
               variante="cera"
               largo
@@ -96,7 +114,13 @@ export function LivroCaixa() {
 function anunciar(carrinho: Carrinho): string {
   const unidades = carrinho.itens.reduce((soma, item) => soma + item.quantidade, 0)
   const total = `Total de ${formatarMoeda(carrinho.total)} moedas de ouro.`
-  return carrinho.status === 'Finalizado'
-    ? `Compra finalizada. ${total}`
-    : `${pluralizar(unidades, 'item', 'itens')} na sacola. ${total}`
+  if (carrinho.status === 'Finalizado') {
+    return `Compra finalizada. ${total}`
+  }
+
+  if (carrinho.status === 'Expirado') {
+    return 'Sua sacola expirou e as mercadorias voltaram para a loja.'
+  }
+
+  return `${pluralizar(unidades, 'item', 'itens')} na sacola. ${total}`
 }
