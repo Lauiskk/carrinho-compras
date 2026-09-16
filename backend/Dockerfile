@@ -7,7 +7,8 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
-COPY global.json Directory.Build.props Directory.Packages.props dotnet-tools.json ./
+COPY global.json Directory.Build.props Directory.Packages.props ./
+COPY .config/dotnet-tools.json .config/
 COPY src/CarrinhoCompras.Domain/CarrinhoCompras.Domain.csproj src/CarrinhoCompras.Domain/
 COPY src/CarrinhoCompras.Application/CarrinhoCompras.Application.csproj src/CarrinhoCompras.Application/
 COPY src/CarrinhoCompras.Infrastructure/CarrinhoCompras.Infrastructure.csproj src/CarrinhoCompras.Infrastructure/
