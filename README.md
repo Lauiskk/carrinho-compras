@@ -6,12 +6,14 @@ API REST de carrinho de compras em **.NET 10** (ASP.NET Core + EF Core + Postgre
 
 ## Sumário
 
+- [Stack](#stack)
 - [Como rodar](#como-rodar)
   - [Com Docker (tudo de uma vez)](#opção-1--docker-tudo-de-uma-vez)
   - [Local, para desenvolvimento](#opção-2--local-para-desenvolvimento)
   - [Configuração do banco de dados](#configuração-do-banco-de-dados)
 - [Testes](#testes)
 - [API](#api)
+  - [Contrato de erro](#contrato-de-erro)
   - [Exemplos de chamadas (.http e Postman)](#exemplos-de-chamadas)
 - [Arquitetura](#arquitetura)
 - [Decisões de design](#decisões-de-design)
@@ -26,7 +28,7 @@ API REST de carrinho de compras em **.NET 10** (ASP.NET Core + EF Core + Postgre
 | API | .NET 10, ASP.NET Core (Controllers), FluentValidation, OpenAPI + Swagger UI |
 | Persistência | PostgreSQL 18, Entity Framework Core 10 (Npgsql), migrations |
 | Front-end | React 19, Vite 8, TypeScript, TanStack Query, CSS Modules |
-| Testes | xUnit v3, Shouldly, Testcontainers, WebApplicationFactory, Vitest, Testing Library, MSW |
+| Testes | xUnit v3, Shouldly, Testcontainers, WebApplicationFactory, Vitest, Testing Library, MSW, Playwright |
 | Infra | Docker (imagens multi-stage, sem root), Docker Compose, GitHub Actions |
 
 ---
@@ -112,10 +114,26 @@ cd frontend && npm run test:run                             # front-end
 |---|---:|---|
 | `CarrinhoCompras.Domain.Tests` | 69 | Regras e cálculos: carrinho vazio, com e sem cupom, quantidades alteradas, troca de cupom, arredondamento, estoque (inclusive overflow), bloqueio após checkout |
 | `CarrinhoCompras.ArchitectureTests` | 8 | O domínio não depende de nenhuma outra camada nem de pacotes; a Application não depende de EF Core/ASP.NET |
-| `CarrinhoCompras.Api.IntegrationTests` | 72 | A API real contra PostgreSQL real: catálogo igual ao JSON, nomes e tipos das colunas, fluxos, **formato de todos os erros**, concorrência, OpenAPI |
-| Front-end (Vitest) | 23 | Cliente HTTP, formatação, componentes e o fluxo completo da página com a API simulada |
+| `CarrinhoCompras.Api.IntegrationTests` | 77 | A API real contra PostgreSQL real: catálogo igual ao JSON, nomes e tipos das colunas, fluxos, **formato de todos os erros**, concorrência, OpenAPI |
+| Front-end (Vitest) | 24 | Cliente HTTP, formatação, componentes e o fluxo completo da página com a API simulada |
+| Interface (Playwright) | 9 | O navegador contra a stack de verdade — ver abaixo |
 
 Os testes de integração sobem um PostgreSQL descartável com **Testcontainers** (precisa de Docker). Sem Docker, dá para apontar para um PostgreSQL existente com a variável `TESTES_POSTGRES_CONNECTION_STRING` (use um banco dedicado a testes).
+
+### Ponta a ponta na interface
+
+Com a stack no ar (`docker compose up --build -d`):
+
+```bash
+cd e2e
+npm ci
+npm run navegadores   # baixa o Chromium, só na primeira vez
+npm test
+```
+
+São nove cenários no navegador, contra o nginx, a API e o PostgreSQL reais: o fluxo completo (catálogo → somar → alterar → remover → cupom → troca de cupom → checkout), com **subtotal, desconto e total conferidos por uma conta feita dentro do próprio teste**; cupom inexistente que não derruba o cupom anterior; limite de estoque; sacola que sobrevive ao recarregamento; **duas abas** disputando a última unidade e depois um carrinho finalizado; celular; e uma compra feita **só com o teclado**. Os elementos são procurados por papel e rótulo acessível, então a suíte também protege a acessibilidade.
+
+Para rodar contra o modo local (`dotnet run` + `npm run dev`): `E2E_BASE_URL=http://localhost:5173 npm test`.
 
 ---
 
@@ -202,7 +220,7 @@ A pasta [`http/`](http) traz o mesmo roteiro em dois formatos: catálogo, criaç
   npx newman run http/carrinho-compras.postman_collection.json
   ```
 
-As duas assumem a API em `http://localhost:5080` (variável `baseUrl`) e o catálogo padrão. No CI, a coleção roda contra a stack do `docker compose`, como teste ponta a ponta.
+As duas assumem a API em `http://localhost:5080` (variável `baseUrl`) e o catálogo padrão. No CI, a coleção roda contra a stack do `docker compose`, como teste ponta a ponta da API — e o Playwright faz o mesmo pela interface.
 
 ---
 
@@ -239,6 +257,7 @@ backend/
   tests/                               Domain.Tests, ArchitectureTests, Api.IntegrationTests
 frontend/
   src/api/ features/catalogo/ features/carrinho/ shared/ styles/ app/
+e2e/                                   testes de navegador (Playwright) contra a stack do compose
 ```
 
 ---
@@ -274,7 +293,7 @@ frontend/
 
 **Entrega**
 - **Docker:** build multi-stage com cache de restore; imagem final `chiseled` (sem shell) rodando sem root; **migrations em um serviço separado** (bundle do EF Core), para a API não migrar o banco ao subir; front servido por nginx sem root, com proxy para a API (mesma origem, sem CORS).
-- **CI (GitHub Actions):** build com warnings como erro, checagem de migrations pendentes, todos os testes (inclusive integração com Testcontainers), lint/testes/build do front e, por fim, a stack inteira no `docker compose` validada pela coleção do Postman.
+- **CI (GitHub Actions):** build com warnings como erro, checagem de migrations pendentes, todos os testes (inclusive integração com Testcontainers), lint/testes/build do front e, por fim, a stack inteira no `docker compose` validada pela coleção do Postman e pelos testes de navegador do Playwright.
 
 ---
 
@@ -325,4 +344,3 @@ Todos os requisitos do enunciado e os diferenciais estão implementados. Evoluç
 - **Cupons mais completos:** validade, valor mínimo e limite de uso, com o percentual aplicado registrado no carrinho.
 - **Chaves de idempotência** nas operações de escrita, para repetições seguras de rede.
 - **Observabilidade:** OpenTelemetry (traces e métricas) e logs estruturados.
-- **Testes ponta a ponta da interface** com Playwright contra o `docker compose` (a API já é validada ponta a ponta pela coleção do Postman no CI).
