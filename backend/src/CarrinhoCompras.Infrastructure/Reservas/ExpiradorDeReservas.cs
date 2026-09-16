@@ -26,40 +26,55 @@ internal sealed class ExpiradorDeReservas(
 
         while (await temporizador.WaitForNextTickAsync(stoppingToken))
         {
-            try
-            {
-                var vencidos = await ComEscopoAsync(
-                    expirar => expirar.ListarVencidosAsync(stoppingToken));
-
-                var expirados = 0;
-                foreach (var carrinhoId in vencidos)
-                {
-                    // Um escopo (e uma transação) por carrinho: um conflito com quem estiver usando aquela
-                    // sacola agora não impede as outras de serem liberadas.
-                    if (await ComEscopoAsync(expirar => expirar.ExpirarAsync(carrinhoId, stoppingToken)))
-                    {
-                        expirados += 1;
-                    }
-                }
-
-                if (expirados > 0)
-                {
-                    log.LogInformation("{Quantidade} sacola(s) expiraram e devolveram as unidades à loja.", expirados);
-                }
-            }
-#pragma warning disable CA1031 // Uma falha num carrinho não pode parar a varredura dos outros.
-            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
-            {
-                // A aplicação está parando: sai do laço sem registrar erro.
-                break;
-            }
-            catch (Exception excecao)
-#pragma warning restore CA1031
-            {
-                log.LogError(excecao, "Falha ao expirar as reservas vencidas; tentando de novo na próxima passagem.");
-            }
+            await UmaPassagemAsync(stoppingToken);
         }
     }
+
+    private async Task UmaPassagemAsync(CancellationToken stoppingToken)
+    {
+        IReadOnlyList<Guid> vencidos;
+        try
+        {
+            vencidos = await ComEscopoAsync(expirar => expirar.ListarVencidosAsync(stoppingToken));
+        }
+        catch (Exception excecao) when (NaoEhParada(excecao, stoppingToken))
+        {
+            log.LogError(excecao, "Falha ao listar as sacolas vencidas; tentando de novo na próxima passagem.");
+            return;
+        }
+
+        var expirados = 0;
+        foreach (var carrinhoId in vencidos)
+        {
+            try
+            {
+                // Um escopo (e uma transação) por carrinho, com o erro tratado aqui dentro: uma sacola que
+                // falha — por conflito com quem a está usando agora, ou por qualquer outro motivo — não pode
+                // levar junto as outras do lote. Como a lista vem ordenada pela mais antiga, sem isto um
+                // carrinho problemático ficaria eternamente na frente, segurando o estoque de todos atrás.
+                if (await ComEscopoAsync(expirar => expirar.ExpirarAsync(carrinhoId, stoppingToken)))
+                {
+                    expirados += 1;
+                }
+            }
+            catch (Exception excecao) when (NaoEhParada(excecao, stoppingToken))
+            {
+                log.LogError(excecao, "Falha ao expirar a sacola {CarrinhoId}; as outras seguem.", carrinhoId);
+            }
+        }
+
+        if (expirados > 0)
+        {
+            log.LogInformation("{Quantidade} sacola(s) expiraram e devolveram as unidades à loja.", expirados);
+        }
+    }
+
+    /// <summary>
+    /// Distingue "a aplicação está parando" (que deve subir e encerrar o serviço) de qualquer outra falha
+    /// (que é registrada e não derruba a varredura).
+    /// </summary>
+    private static bool NaoEhParada(Exception excecao, CancellationToken stoppingToken) =>
+        excecao is not OperationCanceledException || !stoppingToken.IsCancellationRequested;
 
     private async Task<T> ComEscopoAsync<T>(Func<ExpirarReservasVencidasHandler, Task<T>> acao)
     {

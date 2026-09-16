@@ -5,7 +5,7 @@ namespace CarrinhoCompras.Application.Carrinhos;
 
 /// <summary>Carrinho com itens, cupom ativo e valores já calculados.</summary>
 /// <param name="Id">Identificador do carrinho.</param>
-/// <param name="Status">Aberto (aceita alterações) ou Finalizado (checkout realizado).</param>
+/// <param name="Status">Aberto (aceita alterações), Finalizado (checkout realizado) ou Expirado (a reserva venceu).</param>
 /// <param name="Itens">Itens do carrinho.</param>
 /// <param name="Cupom">Cupom ativo, se houver.</param>
 /// <param name="Subtotal">Soma do preço de todos os itens.</param>

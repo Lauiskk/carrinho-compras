@@ -166,6 +166,27 @@ describe('Fluxo completo da loja', () => {
     expect(screen.getByRole('button', { name: `Adicionar ${pocao.descricaoProduto} à sacola` })).toBeDisabled()
   })
 
+  it('avisa que as mercadorias estão sendo recolhidas quando o prazo passa', async () => {
+    // Janela em que o relógio do cliente já passou do prazo, mas o servidor ainda não encerrou a sacola
+    // (quem encerra é a varredura em segundo plano ou a próxima alteração).
+    const vencido = carrinhoVazio({
+      itens: [item(pocao, 1)],
+      subtotal: 25,
+      total: 25,
+      expiraEm: new Date(Date.now() - 60_000).toISOString(),
+    })
+    carrinhoIdStorage.gravar(vencido.id)
+    servidor.use(
+      http.get('/api/produtos', () => HttpResponse.json([pocao, botas])),
+      http.get(`/api/carrinhos/${vencido.id}`, () => HttpResponse.json(vencido)),
+    )
+    renderizar(<App />)
+
+    const sacola = screen.getByRole('complementary', { name: 'Sua sacola' })
+    expect(await within(sacola).findByText(/O mercador está recolhendo suas mercadorias/)).toBeInTheDocument()
+    expect(within(sacola).queryByText(/O mercador guarda estas peças/)).not.toBeInTheDocument()
+  })
+
   it('avisa quando a API está fora do ar', async () => {
     servidor.use(http.get('/api/produtos', () => HttpResponse.error()))
     renderizar(<App />)

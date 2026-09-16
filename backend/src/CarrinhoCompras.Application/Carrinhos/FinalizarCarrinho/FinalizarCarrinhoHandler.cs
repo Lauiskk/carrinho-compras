@@ -18,7 +18,14 @@ public sealed class FinalizarCarrinhoHandler(
             return CarrinhoErros.NaoEncontrado(carrinhoId);
         }
 
-        var resultado = carrinho.Finalizar(timeProvider.AgoraUtc());
+        var agora = timeProvider.AgoraUtc();
+        var podeAlterar = await carrinho.GarantirAlteravelAsync(agora, unitOfWork, cancellationToken);
+        if (podeAlterar.IsFailure)
+        {
+            return podeAlterar.Error;
+        }
+
+        var resultado = carrinho.Finalizar(agora);
         if (resultado.IsFailure)
         {
             return resultado.Error;

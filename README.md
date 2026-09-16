@@ -121,8 +121,8 @@ cd frontend && npm run test:run                             # front-end
 |---|---:|---|
 | `CarrinhoCompras.Domain.Tests` | 86 | Regras e cálculos: carrinho vazio, com e sem cupom, quantidades alteradas, troca de cupom, arredondamento, **reserva e devolução de estoque**, expiração da sacola, bloqueio após checkout |
 | `CarrinhoCompras.ArchitectureTests` | 8 | O domínio não depende de nenhuma outra camada nem de pacotes; a Application não depende de EF Core/ASP.NET |
-| `CarrinhoCompras.Api.IntegrationTests` | 82 | A API real contra PostgreSQL real: catálogo igual ao JSON, nomes e tipos das colunas, fluxos, **formato de todos os erros**, reserva de estoque sob requisições simultâneas, concorrência, OpenAPI |
-| Front-end (Vitest) | 25 | Cliente HTTP, formatação, componentes e o fluxo completo da página com a API simulada |
+| `CarrinhoCompras.Api.IntegrationTests` | 83 | A API real contra PostgreSQL real: catálogo igual ao JSON, nomes e tipos das colunas, fluxos, **formato de todos os erros**, reserva de estoque sob requisições simultâneas, concorrência, OpenAPI |
+| Front-end (Vitest) | 26 | Cliente HTTP, formatação, componentes e o fluxo completo da página com a API simulada |
 | Interface (Playwright) | 11 | O navegador contra a stack de verdade — ver abaixo |
 
 Os testes de integração sobem um PostgreSQL descartável com **Testcontainers** (precisa de Docker). Sem Docker, dá para apontar para um PostgreSQL existente com a variável `TESTES_POSTGRES_CONNECTION_STRING` (use um banco dedicado a testes).

@@ -1,6 +1,8 @@
 using System.Net;
 using CarrinhoCompras.Api.IntegrationTests.Suporte;
 using CarrinhoCompras.Application.Carrinhos;
+using CarrinhoCompras.Domain.Carrinhos;
+using Npgsql;
 
 namespace CarrinhoCompras.Api.IntegrationTests.Reservas;
 
@@ -74,6 +76,41 @@ public sealed class ReservaTests(ApiFactory api)
         depois.QuantidadeReservada.ShouldBe(produto.QuantidadeReservada + Sacolas);
         depois.QuantidadeDisponivel.ShouldBe(disponivelAntes - Sacolas);
         depois.QuantidadeReservada.ShouldBeLessThanOrEqualTo(depois.QuantidadeEstoque);
+    }
+
+    /// <summary>
+    /// A sacola vence e a pessoa tenta alterá-la. A operação é recusada — mas as unidades <b>precisam</b>
+    /// voltar para a vitrine nesse mesmo momento, gravadas: quem descobre o vencimento é justamente a
+    /// operação recusada. Sem isso, o estoque ficaria preso até a varredura em segundo plano passar, e a
+    /// consulta seguinte ainda mostraria a sacola aberta com um prazo no passado.
+    /// </summary>
+    [Fact]
+    public async Task Alterar_uma_sacola_vencida_devolve_as_unidades_de_verdade()
+    {
+        var produto = await _cliente.ProdutoComDisponivelAsync(1);
+        var carrinho = await _cliente.CriarCarrinhoAsync();
+        await _cliente.AdicionarItemComSucessoAsync(carrinho.Id, produto.Id);
+        (await _cliente.ProdutoAtualAsync(produto.Id)).QuantidadeDisponivel.ShouldBe(produto.QuantidadeDisponivel - 1);
+
+        await VencerAReservaAsync(carrinho.Id);
+
+        var recusa = await _cliente.AdicionarItemAsync(carrinho.Id, produto.Id);
+
+        await recusa.DeveSerProblemaAsync(HttpStatusCode.Conflict, "carrinho.expirado");
+        (await _cliente.ProdutoAtualAsync(produto.Id)).QuantidadeDisponivel
+            .ShouldBe(produto.QuantidadeDisponivel, "a recusa não pode descartar a devolução das unidades");
+        (await _cliente.ObterCarrinhoComSucessoAsync(carrinho.Id)).Status.ShouldBe(StatusCarrinho.Expirado);
+    }
+
+    /// <summary>Empurra o prazo para o passado direto no banco — mais rápido e determinístico que esperar.</summary>
+    private async Task VencerAReservaAsync(Guid carrinhoId)
+    {
+        await using var conexao = new NpgsqlConnection(api.ConnectionString);
+        await conexao.OpenAsync(TestContext.Current.CancellationToken);
+        await using var comando = new NpgsqlCommand(
+            """UPDATE "Carrinho" SET "ExpiraEm" = now() - interval '1 hour' WHERE "ID" = @id""", conexao);
+        comando.Parameters.AddWithValue("id", carrinhoId);
+        (await comando.ExecuteNonQueryAsync(TestContext.Current.CancellationToken)).ShouldBe(1);
     }
 
     [Fact]

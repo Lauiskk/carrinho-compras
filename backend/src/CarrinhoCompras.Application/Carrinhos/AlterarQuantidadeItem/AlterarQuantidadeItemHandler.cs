@@ -23,7 +23,14 @@ public sealed class AlterarQuantidadeItemHandler(
             return CarrinhoErros.NaoEncontrado(carrinhoId);
         }
 
-        var resultado = carrinho.AlterarQuantidadeItem(produtoId, request.Quantidade, timeProvider.AgoraUtc(), politica.Janela);
+        var agora = timeProvider.AgoraUtc();
+        var podeAlterar = await carrinho.GarantirAlteravelAsync(agora, unitOfWork, cancellationToken);
+        if (podeAlterar.IsFailure)
+        {
+            return podeAlterar.Error;
+        }
+
+        var resultado = carrinho.AlterarQuantidadeItem(produtoId, request.Quantidade, agora, politica.Janela);
         if (resultado.IsFailure)
         {
             return resultado.Error;

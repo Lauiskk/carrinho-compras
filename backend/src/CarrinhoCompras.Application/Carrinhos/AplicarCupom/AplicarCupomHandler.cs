@@ -26,7 +26,7 @@ public sealed class AplicarCupomHandler(
             return CarrinhoErros.NaoEncontrado(carrinhoId);
         }
 
-        var podeAlterar = carrinho.VerificarSePodeSerAlterado(agora);
+        var podeAlterar = await carrinho.GarantirAlteravelAsync(agora, unitOfWork, cancellationToken);
         if (podeAlterar.IsFailure)
         {
             return podeAlterar.Error;

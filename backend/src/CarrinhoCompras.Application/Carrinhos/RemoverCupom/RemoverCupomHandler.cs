@@ -22,7 +22,14 @@ public sealed class RemoverCupomHandler(
             return CarrinhoErros.NaoEncontrado(carrinhoId);
         }
 
-        var resultado = carrinho.RemoverCupom(timeProvider.AgoraUtc(), politica.Janela);
+        var agora = timeProvider.AgoraUtc();
+        var podeAlterar = await carrinho.GarantirAlteravelAsync(agora, unitOfWork, cancellationToken);
+        if (podeAlterar.IsFailure)
+        {
+            return podeAlterar.Error;
+        }
+
+        var resultado = carrinho.RemoverCupom(agora, politica.Janela);
         if (resultado.IsFailure)
         {
             return resultado.Error;

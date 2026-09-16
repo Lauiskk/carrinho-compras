@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import styles from './PrazoDaReserva.module.css'
 
 type Props = {
@@ -20,7 +20,6 @@ const INTERVALO = 15_000
  */
 export function PrazoDaReserva({ expiraEm }: Props) {
   const queryClient = useQueryClient()
-  const jaAvisou = useRef(false)
   const [restante, setRestante] = useState(() => faltam(expiraEm))
 
   useEffect(() => {
@@ -29,11 +28,15 @@ export function PrazoDaReserva({ expiraEm }: Props) {
   }, [expiraEm])
 
   useEffect(() => {
-    // Venceu: busca o estado real uma vez. Quem encerra a sacola é o servidor, não esta tela.
-    if (restante <= 0 && !jaAvisou.current) {
-      jaAvisou.current = true
-      void queryClient.invalidateQueries({ queryKey: ['carrinho'] })
+    if (restante > 0) {
+      return
     }
+
+    // Venceu. Quem encerra a sacola é o servidor (a varredura em segundo plano, ou a próxima alteração),
+    // então a tela pergunta de novo a cada passagem até a resposta mudar — parar na primeira tentativa
+    // deixaria a pessoa presa neste aviso, sem saída, até recarregar a página.
+    void queryClient.invalidateQueries({ queryKey: ['carrinho'] })
+    void queryClient.invalidateQueries({ queryKey: ['produtos'] })
   }, [restante, queryClient])
 
   if (restante <= 0) {
