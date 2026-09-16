@@ -33,7 +33,7 @@ test('a interface não deixa passar do estoque disponível', async ({ page }) =>
 
   // Devolve o que o cenário segurou: a reserva expiraria sozinha, mas uma rodada seguida não precisa esperar.
   await loja.removerDaSacola(nome)
-  await expect(loja.mercadoria(nome)).toContainText(`${mercadoria.quantidadeDisponivel} em estoque`)
+  await expect(loja.mercadoria(nome)).toContainText(new RegExp(`(^|\\D)${mercadoria.quantidadeDisponivel} em estoque`))
 })
 
 test('não dá para finalizar uma sacola vazia', async ({ page }) => {

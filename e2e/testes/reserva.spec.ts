@@ -35,10 +35,13 @@ test('a sacola diz por quanto tempo as mercadorias ficam guardadas', async ({ pa
   await expect(loja.sacola.getByText(/O mercador guarda estas peças/)).toHaveCount(0)
 })
 
-/** A vitrine mostra o que a API diz: "Esgotado", "Última unidade em estoque" ou "N em estoque". */
-function textoDeEstoque(disponivel: number): string {
+/**
+ * O que a vitrine mostra: "Esgotado", "Última unidade em estoque" ou "N em estoque".
+ * Expressão regular com borda à esquerda porque "3 em estoque" é substring de "13 em estoque".
+ */
+function textoDeEstoque(disponivel: number): RegExp {
   if (disponivel === 0) {
-    return 'Esgotado'
+    return /Esgotado/
   }
-  return disponivel === 1 ? 'Última unidade em estoque' : `${disponivel} em estoque`
+  return disponivel === 1 ? /Última unidade em estoque/ : new RegExp(`(^|\\D)${disponivel} em estoque`)
 }
