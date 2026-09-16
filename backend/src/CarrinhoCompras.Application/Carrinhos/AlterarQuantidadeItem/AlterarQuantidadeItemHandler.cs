@@ -5,7 +5,11 @@ using CarrinhoCompras.Domain.Common;
 namespace CarrinhoCompras.Application.Carrinhos.AlterarQuantidadeItem;
 
 public sealed class AlterarQuantidadeItemHandler(
-    ICarrinhoRepository carrinhos, IProdutoRepository produtos, IUnitOfWork unitOfWork, TimeProvider timeProvider)
+    ICarrinhoRepository carrinhos,
+    IProdutoRepository produtos,
+    IUnitOfWork unitOfWork,
+    TimeProvider timeProvider,
+    PoliticaDeReserva politica)
 {
     public async Task<Result<CarrinhoResponse>> HandleAsync(
         Guid carrinhoId, int produtoId, AlterarQuantidadeItemRequest request, CancellationToken cancellationToken)
@@ -19,7 +23,7 @@ public sealed class AlterarQuantidadeItemHandler(
             return CarrinhoErros.NaoEncontrado(carrinhoId);
         }
 
-        var resultado = carrinho.AlterarQuantidadeItem(produtoId, request.Quantidade, timeProvider.AgoraUtc());
+        var resultado = carrinho.AlterarQuantidadeItem(produtoId, request.Quantidade, timeProvider.AgoraUtc(), politica.Janela);
         if (resultado.IsFailure)
         {
             return resultado.Error;

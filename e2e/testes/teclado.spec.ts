@@ -1,8 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { Loja } from '../suporte/loja.js'
 
-const POCAO = 'Poção de Cura Menor'
-
 /** Vai apertando Tab até o elemento receber o foco. Falha se ele não for alcançável pelo teclado. */
 async function tabAte(page: Page, destino: Locator, limite = 40): Promise<void> {
   for (let passo = 0; passo < limite; passo += 1) {
@@ -17,6 +15,7 @@ async function tabAte(page: Page, destino: Locator, limite = 40): Promise<void> 
 test('dá para comprar usando só o teclado', async ({ page }) => {
   const loja = new Loja(page)
   await loja.abrir()
+  const POCAO = (await loja.escolherMercadoria(1)).descricaoProduto
 
   // Adicionar a mercadoria.
   const adicionar = loja.mercadoria(POCAO).getByRole('button', { name: `Adicionar ${POCAO} à sacola` })
@@ -42,6 +41,7 @@ test('dá para comprar usando só o teclado', async ({ page }) => {
 test('o foco do teclado é visível', async ({ page }) => {
   const loja = new Loja(page)
   await loja.abrir()
+  const POCAO = (await loja.escolherMercadoria(1)).descricaoProduto
 
   const adicionar = loja.mercadoria(POCAO).getByRole('button', { name: `Adicionar ${POCAO} à sacola` })
   await tabAte(page, adicionar)

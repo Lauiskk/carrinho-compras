@@ -5,7 +5,11 @@ using CarrinhoCompras.Domain.Common;
 namespace CarrinhoCompras.Application.Carrinhos.RemoverCupom;
 
 public sealed class RemoverCupomHandler(
-    ICarrinhoRepository carrinhos, IProdutoRepository produtos, IUnitOfWork unitOfWork, TimeProvider timeProvider)
+    ICarrinhoRepository carrinhos,
+    IProdutoRepository produtos,
+    IUnitOfWork unitOfWork,
+    TimeProvider timeProvider,
+    PoliticaDeReserva politica)
 {
     public async Task<Result<CarrinhoResponse>> HandleAsync(Guid carrinhoId, CancellationToken cancellationToken)
     {
@@ -18,7 +22,7 @@ public sealed class RemoverCupomHandler(
             return CarrinhoErros.NaoEncontrado(carrinhoId);
         }
 
-        var resultado = carrinho.RemoverCupom(timeProvider.AgoraUtc());
+        var resultado = carrinho.RemoverCupom(timeProvider.AgoraUtc(), politica.Janela);
         if (resultado.IsFailure)
         {
             return resultado.Error;

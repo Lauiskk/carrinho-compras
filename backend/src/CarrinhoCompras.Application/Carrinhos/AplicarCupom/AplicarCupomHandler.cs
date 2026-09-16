@@ -10,7 +10,8 @@ public sealed class AplicarCupomHandler(
     ICupomRepository cupons,
     IProdutoRepository produtos,
     IUnitOfWork unitOfWork,
-    TimeProvider timeProvider)
+    TimeProvider timeProvider,
+    PoliticaDeReserva politica)
 {
     public async Task<Result<CarrinhoResponse>> HandleAsync(
         Guid carrinhoId, AplicarCupomRequest request, CancellationToken cancellationToken)
@@ -38,7 +39,7 @@ public sealed class AplicarCupomHandler(
             return CupomErros.Invalido(codigo);
         }
 
-        var resultado = carrinho.AplicarCupom(cupom, agora);
+        var resultado = carrinho.AplicarCupom(cupom, agora, politica.Janela);
         if (resultado.IsFailure)
         {
             return resultado.Error;

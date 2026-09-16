@@ -1,11 +1,10 @@
 import { expect, test } from '@playwright/test'
 import { Loja, moeda } from '../suporte/loja.js'
 
-const POCAO = 'Poção de Cura Menor'
-
 test('no celular a loja cabe na tela e a barra leva até a sacola', async ({ page }) => {
   const loja = new Loja(page)
   await loja.abrir()
+  const POCAO = (await loja.escolherMercadoria(1)).descricaoProduto
 
   // Nada de rolagem horizontal.
   const { largura, visivel } = await page.evaluate(() => ({
@@ -28,6 +27,12 @@ test('no celular a loja cabe na tela e a barra leva até a sacola', async ({ pag
 
   const preco = await loja.precoDeCatalogo(POCAO)
   await loja.adicionar(POCAO)
+  await expect(loja.linhaDaSacola(POCAO)).toBeVisible()
+
+  // A barra só existe enquanto a sacola está fora da tela — clicar no botão de uma prateleira mais abaixo
+  // pode ter rolado a página até ela. De volta ao topo, a barra reaparece com o resumo.
+  await page.evaluate(() => window.scrollTo(0, 0))
+  await expect(verSacola).toBeVisible()
   await expect(barra).toContainText('1 item na sacola')
   await expect(barra).toContainText(`Total ${moeda(preco)}`)
 

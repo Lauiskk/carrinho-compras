@@ -1,12 +1,13 @@
 import { expect, test } from '@playwright/test'
 import { descontoEsperado, Loja, moeda } from '../suporte/loja.js'
 
-const POCAO = 'Poção de Cura Menor'
-const LANTERNA = 'Lanterna de Óleo'
-
 test('percorre catálogo, sacola, cupom, totais e checkout', async ({ page }) => {
   const loja = new Loja(page)
   await loja.abrir()
+
+  // As mercadorias são escolhidas na hora, pelo que está disponível: o catálogo é estado vivo.
+  const POCAO = (await loja.escolherMercadoria(4)).descricaoProduto
+  const LANTERNA = (await loja.escolherMercadoria(1, [POCAO])).descricaoProduto
 
   // --- Catálogo ---------------------------------------------------------------------------------
   await expect(loja.prateleiras.getByRole('listitem')).toHaveCount(10)

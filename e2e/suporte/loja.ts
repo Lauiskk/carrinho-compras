@@ -1,5 +1,15 @@
 import { expect, type Locator, type Page } from '@playwright/test'
 
+/** Produto como o catálogo da API devolve. */
+export type Mercadoria = {
+  id: number
+  descricaoProduto: string
+  precoLiquido: number
+  quantidadeEstoque: number
+  quantidadeReservada: number
+  quantidadeDisponivel: number
+}
+
 /**
  * Atalhos para falar com a loja pelos mesmos nomes que uma pessoa usaria: "a prateleira da Poção",
  * "a linha da sacola", "o Total". Tudo por papel e rótulo acessível — se um controle perder o nome,
@@ -30,6 +40,46 @@ export class Loja {
   /** A linha de um produto dentro da sacola. */
   linhaDaSacola(nome: string): Locator {
     return this.sacola.getByRole('listitem').filter({ hasText: nome })
+  }
+
+  /**
+   * Escolhe uma mercadoria com folga suficiente <b>agora</b>, perguntando ao catálogo da API. Com reserva de
+   * estoque os números são vivos (outra sacola pode estar segurando peças, e cada compra baixa o físico),
+   * então fixar um produto no teste o tornaria frágil.
+   */
+  async escolherMercadoria(minimoDisponivel: number, excluir: string[] = []): Promise<Mercadoria> {
+    const produtos = await this.catalogo()
+    const candidatos = produtos
+      .filter((produto) => produto.quantidadeDisponivel >= minimoDisponivel && !excluir.includes(produto.descricaoProduto))
+      .sort((a, b) => b.quantidadeDisponivel - a.quantidadeDisponivel)
+
+    const escolhida = candidatos[0]
+    if (!escolhida) {
+      throw new Error(`Nenhuma mercadoria com ${minimoDisponivel} unidade(s) disponível(is) no momento.`)
+    }
+    return escolhida
+  }
+
+  /**
+   * A mercadoria mais escassa que ainda atende ao mínimo. Serve aos cenários que precisam esgotar o
+   * disponível: esvaziar a prateleira de 2 unidades leva um clique; a de 50, quarenta e nove.
+   */
+  async escolherMercadoriaEscassa(minimoDisponivel: number): Promise<Mercadoria> {
+    const candidatas = await this.catalogo()
+    const escolhida = candidatas
+      .filter((produto) => produto.quantidadeDisponivel >= minimoDisponivel)
+      .sort((a, b) => a.quantidadeDisponivel - b.quantidadeDisponivel)[0]
+
+    if (!escolhida) {
+      throw new Error(`Nenhuma mercadoria com ${minimoDisponivel} unidade(s) disponível(is) no momento.`)
+    }
+    return escolhida
+  }
+
+  private async catalogo(): Promise<Mercadoria[]> {
+    const resposta = await this.page.request.get('/api/produtos')
+    expect(resposta.ok(), 'o catálogo precisa responder para o teste escolher a mercadoria').toBeTruthy()
+    return (await resposta.json()) as Mercadoria[]
   }
 
   /** Preço de catálogo da mercadoria, em centavos, lido da própria etiqueta. */

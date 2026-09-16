@@ -5,7 +5,8 @@ using CarrinhoCompras.Infrastructure;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services
-    .AddApplication()
+    // Por quanto tempo a loja segura as mercadorias de uma sacola parada (ex.: "00:02:00").
+    .AddApplication(builder.Configuration.GetValue<TimeSpan?>("Carrinho:JanelaDeReserva"))
     .AddInfrastructure()
     .AddApi();
 

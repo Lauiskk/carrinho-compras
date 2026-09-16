@@ -85,9 +85,9 @@ public sealed class ReservaTests
     {
         var produto = Dados.Produto(estoque: 5);
         var carrinho = Dados.CarrinhoCom((produto, 2));
-        carrinho.ExpiraEm.ShouldBe(Dados.Agora + Carrinho.JanelaDeReserva);
+        carrinho.ExpiraEm.ShouldBe(Dados.Agora + Carrinho.JanelaDeReservaPadrao);
 
-        carrinho.ExpirarSeVencido(Dados.Agora + Carrinho.JanelaDeReserva + TimeSpan.FromSeconds(1)).ShouldBeTrue();
+        carrinho.ExpirarSeVencido(Dados.Agora + Carrinho.JanelaDeReservaPadrao + TimeSpan.FromSeconds(1)).ShouldBeTrue();
 
         carrinho.Status.ShouldBe(StatusCarrinho.Expirado);
         carrinho.EstaExpirado.ShouldBeTrue();
@@ -101,7 +101,7 @@ public sealed class ReservaTests
     {
         var produto = Dados.Produto(estoque: 5);
         var carrinho = Dados.CarrinhoCom((produto, 2));
-        var depoisDoPrazo = Dados.Agora + Carrinho.JanelaDeReserva + TimeSpan.FromMinutes(1);
+        var depoisDoPrazo = Dados.Agora + Carrinho.JanelaDeReservaPadrao + TimeSpan.FromMinutes(1);
 
         carrinho.ExpirarSeVencido(depoisDoPrazo).ShouldBeTrue();
         carrinho.ExpirarSeVencido(depoisDoPrazo).ShouldBeFalse();
@@ -118,7 +118,7 @@ public sealed class ReservaTests
 
         carrinho.AdicionarItem(produto, 1, maisTarde).DeveTerSucesso();
 
-        carrinho.ExpiraEm.ShouldBe(maisTarde + Carrinho.JanelaDeReserva);
+        carrinho.ExpiraEm.ShouldBe(maisTarde + Carrinho.JanelaDeReservaPadrao);
     }
 
     [Fact]
@@ -163,7 +163,7 @@ public sealed class ReservaTests
     {
         var produto = Dados.Produto(estoque: 5);
         var carrinho = Dados.CarrinhoCom((produto, 1));
-        var depoisDoPrazo = Dados.Agora + Carrinho.JanelaDeReserva + TimeSpan.FromMinutes(1);
+        var depoisDoPrazo = Dados.Agora + Carrinho.JanelaDeReservaPadrao + TimeSpan.FromMinutes(1);
 
         var resultado = alteracao switch
         {

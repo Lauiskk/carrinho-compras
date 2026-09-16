@@ -6,7 +6,11 @@ using CarrinhoCompras.Domain.Produtos;
 namespace CarrinhoCompras.Application.Carrinhos.AdicionarItem;
 
 public sealed class AdicionarItemHandler(
-    ICarrinhoRepository carrinhos, IProdutoRepository produtos, IUnitOfWork unitOfWork, TimeProvider timeProvider)
+    ICarrinhoRepository carrinhos,
+    IProdutoRepository produtos,
+    IUnitOfWork unitOfWork,
+    TimeProvider timeProvider,
+    PoliticaDeReserva politica)
 {
     public async Task<Result<CarrinhoResponse>> HandleAsync(
         Guid carrinhoId, AdicionarItemRequest request, CancellationToken cancellationToken)
@@ -33,7 +37,7 @@ public sealed class AdicionarItemHandler(
             return ProdutoErros.NaoEncontrado(request.ProdutoId);
         }
 
-        var resultado = carrinho.AdicionarItem(produto, request.Quantidade, agora);
+        var resultado = carrinho.AdicionarItem(produto, request.Quantidade, agora, politica.Janela);
         if (resultado.IsFailure)
         {
             return resultado.Error;

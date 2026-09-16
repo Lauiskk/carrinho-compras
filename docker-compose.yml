@@ -40,6 +40,9 @@ services:
       ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__CarrinhoCompras: *connection-string
       Documentacao__Habilitada: "true"
+      # Loja de demonstração: a sacola segura as mercadorias por 2 minutos, para dar para ver a reserva
+      # voltar à vitrine sem esperar os 15 do padrão de negócio.
+      Carrinho__JanelaDeReserva: ${RESERVA_JANELA:-00:02:00}
     ports:
       - "${API_PORT:-5080}:8080"
     depends_on:

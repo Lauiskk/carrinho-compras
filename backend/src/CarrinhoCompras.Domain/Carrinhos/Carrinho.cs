@@ -19,8 +19,12 @@ namespace CarrinhoCompras.Domain.Carrinhos;
 /// </summary>
 public sealed class Carrinho
 {
-    /// <summary>Por quanto tempo uma sacola parada continua segurando as unidades dos seus itens.</summary>
-    public static readonly TimeSpan JanelaDeReserva = TimeSpan.FromMinutes(15);
+    /// <summary>
+    /// Por quanto tempo uma sacola parada continua segurando as unidades dos seus itens. É o padrão de
+    /// negócio; cada operação pode receber outra janela (a aplicação lê a sua da configuração), porque
+    /// "quanto tempo a loja segura uma peça" é decisão comercial, não constante de compilação.
+    /// </summary>
+    public static readonly TimeSpan JanelaDeReservaPadrao = TimeSpan.FromMinutes(15);
 
     private readonly List<ItemCarrinho> _itens = [];
 
@@ -110,7 +114,7 @@ public sealed class Carrinho
     /// Adiciona o produto com a quantidade informada, reservando as unidades. Se o produto já estiver no
     /// carrinho, soma à quantidade existente (as unidades que já estavam lá seguem reservadas).
     /// </summary>
-    public Result AdicionarItem(Produto produto, int quantidade, DateTimeOffset agora)
+    public Result AdicionarItem(Produto produto, int quantidade, DateTimeOffset agora, TimeSpan? janelaDeReserva = null)
     {
         ArgumentNullException.ThrowIfNull(produto);
 
@@ -144,7 +148,7 @@ public sealed class Carrinho
             item.DefinirQuantidade(item.Quantidade + quantidade);
         }
 
-        Concluir(agora);
+        Concluir(agora, janelaDeReserva);
         return Result.Success();
     }
 
@@ -152,7 +156,7 @@ public sealed class Carrinho
     /// Substitui a quantidade de um item que já está no carrinho (pode aumentar ou diminuir), reservando
     /// ou devolvendo apenas a diferença.
     /// </summary>
-    public Result AlterarQuantidadeItem(int produtoId, int quantidade, DateTimeOffset agora)
+    public Result AlterarQuantidadeItem(int produtoId, int quantidade, DateTimeOffset agora, TimeSpan? janelaDeReserva = null)
     {
         var alteravel = VerificarSePodeSerAlterado(agora);
         if (alteravel.IsFailure)
@@ -187,11 +191,11 @@ public sealed class Carrinho
         }
 
         item.DefinirQuantidade(quantidade);
-        Concluir(agora);
+        Concluir(agora, janelaDeReserva);
         return Result.Success();
     }
 
-    public Result RemoverItem(int produtoId, DateTimeOffset agora)
+    public Result RemoverItem(int produtoId, DateTimeOffset agora, TimeSpan? janelaDeReserva = null)
     {
         var alteravel = VerificarSePodeSerAlterado(agora);
         if (alteravel.IsFailure)
@@ -207,14 +211,14 @@ public sealed class Carrinho
 
         item.Produto.LiberarReserva(item.Quantidade);
         _itens.Remove(item);
-        Concluir(agora);
+        Concluir(agora, janelaDeReserva);
         return Result.Success();
     }
 
     /// <summary>
     /// Aplica o cupom. Como só existe um cupom ativo por vez, um cupom aplicado antes é substituído.
     /// </summary>
-    public Result AplicarCupom(Cupom cupom, DateTimeOffset agora)
+    public Result AplicarCupom(Cupom cupom, DateTimeOffset agora, TimeSpan? janelaDeReserva = null)
     {
         ArgumentNullException.ThrowIfNull(cupom);
 
@@ -226,12 +230,12 @@ public sealed class Carrinho
 
         Cupom = cupom;
         CupomId = cupom.Id;
-        Concluir(agora);
+        Concluir(agora, janelaDeReserva);
         return Result.Success();
     }
 
     /// <summary>Remove o cupom ativo. Sem cupom aplicado, não há o que remover e a operação não falha.</summary>
-    public Result RemoverCupom(DateTimeOffset agora)
+    public Result RemoverCupom(DateTimeOffset agora, TimeSpan? janelaDeReserva = null)
     {
         var alteravel = VerificarSePodeSerAlterado(agora);
         if (alteravel.IsFailure)
@@ -241,7 +245,7 @@ public sealed class Carrinho
 
         Cupom = null;
         CupomId = null;
-        Concluir(agora);
+        Concluir(agora, janelaDeReserva);
         return Result.Success();
     }
 
@@ -276,10 +280,10 @@ public sealed class Carrinho
     private ItemCarrinho? BuscarItem(int produtoId) => _itens.Find(item => item.ProdutoId == produtoId);
 
     /// <summary>Fecha uma alteração: renova o prazo da reserva e recalcula os valores.</summary>
-    private void Concluir(DateTimeOffset agora)
+    private void Concluir(DateTimeOffset agora, TimeSpan? janelaDeReserva)
     {
         // Sacola vazia não segura nada, então não tem prazo para vencer.
-        ExpiraEm = _itens.Count > 0 ? agora + JanelaDeReserva : null;
+        ExpiraEm = _itens.Count > 0 ? agora + (janelaDeReserva ?? JanelaDeReservaPadrao) : null;
 
         Subtotal = _itens.Sum(item => item.PrecoItem);
         Desconto = Cupom?.CalcularDesconto(Subtotal) ?? 0m;

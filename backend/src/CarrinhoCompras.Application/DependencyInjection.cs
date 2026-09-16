@@ -1,4 +1,5 @@
 using CarrinhoCompras.Application.Carrinhos.AdicionarItem;
+using CarrinhoCompras.Application.Common;
 using CarrinhoCompras.Application.Carrinhos.AlterarQuantidadeItem;
 using CarrinhoCompras.Application.Carrinhos.AplicarCupom;
 using CarrinhoCompras.Application.Carrinhos.CriarCarrinho;
@@ -17,9 +18,14 @@ namespace CarrinhoCompras.Application;
 
 public static class DependencyInjection
 {
-    public static IServiceCollection AddApplication(this IServiceCollection services)
+    /// <param name="services">Contêiner de serviços da aplicação.</param>
+    /// <param name="janelaDeReserva">
+    /// Por quanto tempo uma sacola parada segura as mercadorias. Sem valor, usa o padrão do domínio.
+    /// </param>
+    public static IServiceCollection AddApplication(this IServiceCollection services, TimeSpan? janelaDeReserva = null)
     {
         services.TryAddSingleton(TimeProvider.System);
+        services.TryAddSingleton(janelaDeReserva is null ? PoliticaDeReserva.Padrao : new PoliticaDeReserva(janelaDeReserva.Value));
         services.AddValidatorsFromAssemblyContaining<AdicionarItemRequestValidator>();
 
         // Um handler por caso de uso, registrado explicitamente: fácil de encontrar e sem "mágica" de reflexão.
