@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "2f26383f-61d2-5790-9504-9f41c687b440",
     "name": "Carrinho de Compras API",
-    "description": "Exemplos de chamadas e testes automáticos da API do carrinho de compras.\n\nComo usar:\n1. Suba a API (`docker compose up --build` ou `dotnet run`). A variável `baseUrl` aponta para http://localhost:5080.\n2. Execute a coleção inteira na ordem (Collection Runner) ou pela linha de comando: `npx newman run http/carrinho-compras.postman_collection.json`.\n\nO carrinho criado em \"2. Carrinho\" fica na variável `carrinhoId` e é reaproveitado nas pastas seguintes. Os valores esperados consideram o catálogo padrão (produtos.json e cupons.json). Todo erro é validado no formato ProblemDetails, com `code` e `traceId`.",
+    "description": "Exemplos de chamadas e testes automáticos da API do carrinho de compras.\n\nComo usar:\n1. Suba a API (`docker compose up --build` ou `dotnet run`). A variável `baseUrl` aponta para http://localhost:5080.\n2. Execute a coleção inteira na ordem (Collection Runner) ou pela linha de comando: `npx newman run http/carrinho-compras.postman_collection.json`.\n\nO carrinho criado em \"2. Carrinho\" fica na variável `carrinhoId` e é reaproveitado nas pastas seguintes. Os valores esperados consideram o catálogo padrão (produtos.json e cupons.json) com a loja recém-subida — o estoque é reservado enquanto uma sacola está aberta e baixa de vez a cada compra finalizada. Todo erro é validado no formato ProblemDetails, com `code` e `traceId`.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -50,7 +50,7 @@
                   "pm.test('Catálogo com os campos do produtos.json', () => {",
                   "  const produtos = pm.response.json();",
                   "  pm.expect(produtos).to.be.an('array').that.is.not.empty;",
-                  "  pm.expect(produtos[0]).to.have.all.keys('id', 'descricaoProduto', 'precoLiquido', 'quantidadeEstoque');",
+                  "  pm.expect(produtos[0]).to.have.all.keys('id', 'descricaoProduto', 'precoLiquido', 'quantidadeEstoque', 'quantidadeReservada', 'quantidadeDisponivel');",
                   "});"
                 ]
               }
@@ -81,7 +81,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Status 200', () => pm.response.to.have.status(200));",
-                  "pm.test('Botas com estoque 2', () => pm.expect(pm.response.json().quantidadeEstoque).to.eql(2));"
+                  "pm.test('Botas com 2 unidades disponíveis', () => pm.expect(pm.response.json().quantidadeDisponivel).to.eql(2));"
                 ]
               }
             }
@@ -212,6 +212,7 @@
                   "  pm.expect(item.precoItem).to.be.closeTo(25.0, 0.001);",
                   "  pm.expect(item).to.have.property('precoLiquidoUnitario');",
                   "  pm.expect(item).to.have.property('quantidadeEstoque');",
+                  "  pm.expect(item).to.have.property('quantidadeDisponivel');",
                   "});",
                   "const carrinho = pm.response.json();",
                   "pm.test('Subtotal 25.0, desconto 0 e total 25.0', () => {",
@@ -270,6 +271,7 @@
                   "  pm.expect(item.precoItem).to.be.closeTo(75.0, 0.001);",
                   "  pm.expect(item).to.have.property('precoLiquidoUnitario');",
                   "  pm.expect(item).to.have.property('quantidadeEstoque');",
+                  "  pm.expect(item).to.have.property('quantidadeDisponivel');",
                   "});",
                   "const carrinho = pm.response.json();",
                   "pm.test('Subtotal 75.0, desconto 0 e total 75.0', () => {",
@@ -328,6 +330,7 @@
                   "  pm.expect(item.precoItem).to.be.closeTo(99.99, 0.001);",
                   "  pm.expect(item).to.have.property('precoLiquidoUnitario');",
                   "  pm.expect(item).to.have.property('quantidadeEstoque');",
+                  "  pm.expect(item).to.have.property('quantidadeDisponivel');",
                   "});",
                   "const carrinho = pm.response.json();",
                   "pm.test('Subtotal 174.99, desconto 0 e total 174.99', () => {",
@@ -387,6 +390,7 @@
                   "  pm.expect(item.precoItem).to.be.closeTo(125.0, 0.001);",
                   "  pm.expect(item).to.have.property('precoLiquidoUnitario');",
                   "  pm.expect(item).to.have.property('quantidadeEstoque');",
+                  "  pm.expect(item).to.have.property('quantidadeDisponivel');",
                   "});",
                   "const carrinho = pm.response.json();",
                   "pm.test('Subtotal 224.99, desconto 0 e total 224.99', () => {",
@@ -446,6 +450,7 @@
                   "  pm.expect(item.precoItem).to.be.closeTo(50.0, 0.001);",
                   "  pm.expect(item).to.have.property('precoLiquidoUnitario');",
                   "  pm.expect(item).to.have.property('quantidadeEstoque');",
+                  "  pm.expect(item).to.have.property('quantidadeDisponivel');",
                   "});",
                   "const carrinho = pm.response.json();",
                   "pm.test('Subtotal 149.99, desconto 0 e total 149.99', () => {",
@@ -738,6 +743,7 @@
                   "  pm.expect(item.precoItem).to.be.closeTo(99.99, 0.001);",
                   "  pm.expect(item).to.have.property('precoLiquidoUnitario');",
                   "  pm.expect(item).to.have.property('quantidadeEstoque');",
+                  "  pm.expect(item).to.have.property('quantidadeDisponivel');",
                   "});",
                   "const carrinho = pm.response.json();",
                   "pm.test('Subtotal 149.99, desconto 22.5 e total 127.49', () => {",
@@ -1823,7 +1829,241 @@
       ]
     },
     {
-      "name": "8. Saúde e documentação",
+      "name": "8. Reserva de estoque",
+      "description": "O que entra na sacola sai da vitrine para todo mundo, e volta quando sai da sacola. Os números são lidos do próprio catálogo antes e depois, então a pasta funciona qualquer que seja o estado da loja.",
+      "item": [
+        {
+          "name": "Botas antes da reserva",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/produtos/8",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "produtos",
+                "8"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Catálogo expõe estoque, reservado e disponível coerentes', () => {",
+                  "  const p = pm.response.json();",
+                  "  pm.expect(p.quantidadeDisponivel).to.eql(p.quantidadeEstoque - p.quantidadeReservada);",
+                  "});",
+                  "const produto = pm.response.json();",
+                  "pm.collectionVariables.set('estoqueAntes', produto.quantidadeEstoque);",
+                  "pm.collectionVariables.set('reservadoAntes', produto.quantidadeReservada);",
+                  "pm.collectionVariables.set('disponivelAntes', produto.quantidadeDisponivel);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Criar sacola para a reserva",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/carrinhos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "carrinhos"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const carrinho = pm.response.json();",
+                  "pm.collectionVariables.set('reservaCarrinhoId', carrinho.id);",
+                  "pm.test('Sacola vazia não tem prazo, porque não segura nada', () => pm.expect(carrinho.expiraEm).to.be.null);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reservar 1 unidade das Botas",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/carrinhos/{{reservaCarrinhoId}}/itens",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "carrinhos",
+                "{{reservaCarrinhoId}}",
+                "itens"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"produtoId\": 8,\n  \"quantidade\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const carrinho = pm.response.json();",
+                  "pm.test('A sacola passa a ter prazo de reserva', () => {",
+                  "  pm.expect(carrinho.expiraEm).to.be.a('string');",
+                  "  pm.expect(new Date(carrinho.expiraEm).getTime()).to.be.greaterThan(new Date(carrinho.criadoEm).getTime());",
+                  "});",
+                  "pm.test('O item mostra quanto ainda dá para somar', () => {",
+                  "  const item = carrinho.itens.find(i => i.produtoId === 8);",
+                  "  pm.expect(item).to.have.property('quantidadeDisponivel');",
+                  "  pm.expect(item.quantidadeDisponivel).to.eql(Number(pm.collectionVariables.get('disponivelAntes')) - 1);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "A vitrine já mostra uma unidade a menos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/produtos/8",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "produtos",
+                "8"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Reservado sobe, disponível cai, estoque físico não muda', () => {",
+                  "  const p = pm.response.json();",
+                  "  pm.expect(p.quantidadeEstoque).to.eql(Number(pm.collectionVariables.get('estoqueAntes')));",
+                  "  pm.expect(p.quantidadeReservada).to.eql(Number(pm.collectionVariables.get('reservadoAntes')) + 1);",
+                  "  pm.expect(p.quantidadeDisponivel).to.eql(Number(pm.collectionVariables.get('disponivelAntes')) - 1);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Tirar da sacola",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/carrinhos/{{reservaCarrinhoId}}/itens/8",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "carrinhos",
+                "{{reservaCarrinhoId}}",
+                "itens",
+                "8"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const carrinho = pm.response.json();",
+                  "pm.test('Sacola vazia perde o prazo junto com a reserva', () => {",
+                  "  pm.expect(carrinho.itens).to.be.an('array').that.is.empty;",
+                  "  pm.expect(carrinho.expiraEm).to.be.null;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "A unidade volta para a vitrine",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/produtos/8",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "produtos",
+                "8"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Tudo como estava antes da reserva', () => {",
+                  "  const p = pm.response.json();",
+                  "  pm.expect(p.quantidadeEstoque).to.eql(Number(pm.collectionVariables.get('estoqueAntes')));",
+                  "  pm.expect(p.quantidadeReservada).to.eql(Number(pm.collectionVariables.get('reservadoAntes')));",
+                  "  pm.expect(p.quantidadeDisponivel).to.eql(Number(pm.collectionVariables.get('disponivelAntes')));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "9. Saúde e documentação",
       "description": "",
       "item": [
         {

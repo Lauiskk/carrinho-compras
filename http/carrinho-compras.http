@@ -4,7 +4,9 @@
 #   - VS Code com a extensão "REST Client" ou Visual Studio 2022 (17.12+).
 #   - Suba a API (docker compose up --build, ou dotnet run) e execute as requisições de cima para baixo:
 #     o carrinho criado em "2. Carrinho" é reaproveitado automaticamente nas seções seguintes.
-#   - Os valores comentados consideram o catálogo padrão (produtos.json / cupons.json).
+#   - Os valores comentados consideram o catálogo padrão (produtos.json / cupons.json) com a loja
+#     recém-subida: o estoque fica reservado enquanto a sacola está aberta e baixa de vez a cada compra.
+#     Para repor os números, rode o seed de novo: docker compose up -d --force-recreate migrations
 #   - Todo erro volta no formato ProblemDetails, com "code" estável e "traceId".
 
 @baseUrl = http://localhost:5080
@@ -14,7 +16,7 @@
 # 1. Catálogo
 ############################################################################
 
-### Listar produtos (preço líquido unitário e estoque)
+### Listar produtos (preço líquido unitário, estoque físico, reservado e disponível)
 GET {{baseUrl}}/api/produtos
 Accept: application/json
 
@@ -265,7 +267,38 @@ POST {{baseUrl}}/api/carrinhos/{{criarCarrinhoVazio.response.body.$.id}}/finaliz
 
 
 ############################################################################
-# 8. Saúde e documentação
+# 8. Reserva de estoque
+#    O que entra na sacola sai da vitrine para todo mundo e volta ao sair dela.
+############################################################################
+
+### Botas antes da reserva (estoque 2, reservado 0, disponível 2)
+GET {{baseUrl}}/api/produtos/8
+
+### Criar uma sacola só para ver a reserva (expiraEm nulo: sacola vazia não segura nada)
+# @name sacolaDaReserva
+POST {{baseUrl}}/api/carrinhos
+
+### Reservar 1 unidade das Botas — a resposta passa a trazer expiraEm
+POST {{baseUrl}}/api/carrinhos/{{sacolaDaReserva.response.body.$.id}}/itens
+Content-Type: application/json
+
+{
+  "produtoId": 8,
+  "quantidade": 1
+}
+
+### A vitrine já mostra uma a menos (estoque 2, reservado 1, disponível 1)
+GET {{baseUrl}}/api/produtos/8
+
+### Tirar da sacola devolve a unidade (itens vazios, expiraEm nulo de novo)
+DELETE {{baseUrl}}/api/carrinhos/{{sacolaDaReserva.response.body.$.id}}/itens/8
+
+### E a vitrine volta ao que era (estoque 2, reservado 0, disponível 2)
+GET {{baseUrl}}/api/produtos/8
+
+
+############################################################################
+# 9. Saúde e documentação
 ############################################################################
 
 ### Health check (verifica o banco)
