@@ -47,7 +47,11 @@ function useAlteracaoDoCarrinho<TVariaveis>(executar: (carrinhoId: string, varia
       await queryClient.cancelQueries({ queryKey: chaveCarrinho(carrinhoId) })
       return executar(carrinhoId, variaveis)
     },
-    onSuccess: definirCarrinho,
+    onSuccess: (carrinho) => {
+      definirCarrinho(carrinho)
+      // Reservar ou soltar unidades muda o disponível da vitrine — inclusive para as outras pessoas.
+      void queryClient.invalidateQueries({ queryKey: ['produtos'] })
+    },
     onError: (erro) => {
       if (!(erro instanceof ApiError) || erro.code === CODIGO_SEM_CONEXAO) {
         return
@@ -60,9 +64,11 @@ function useAlteracaoDoCarrinho<TVariaveis>(executar: (carrinhoId: string, varia
         return
       }
 
-      // Uma recusa da API (estoque, carrinho finalizado, concorrência...) pode significar que a tela está
-      // desatualizada, por exemplo porque outra aba alterou o carrinho: recarrega o estado real do servidor.
+      // Uma recusa da API (estoque, carrinho finalizado, concorrência...) quase sempre significa que a tela
+      // está desatualizada — outra sacola levou as unidades, ou esta foi finalizada em outra aba.
+      // Recarrega o estado real do servidor, dos dois lados da tela.
       void queryClient.invalidateQueries({ queryKey: ['carrinho'] })
+      void queryClient.invalidateQueries({ queryKey: ['produtos'] })
     },
   })
 }
