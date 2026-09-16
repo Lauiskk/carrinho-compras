@@ -82,6 +82,31 @@ jobs:
       - name: Rodar a coleção do Postman contra a stack
         run: npx --yes newman@6 run http/carrinho-compras.postman_collection.json
 
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: e2e/package-lock.json
+
+      - name: Instalar o Playwright
+        working-directory: e2e
+        run: |
+          npm ci
+          npm run typecheck
+          npx playwright install --with-deps chromium
+
+      - name: Testes da interface ponta a ponta (Playwright)
+        working-directory: e2e
+        run: npx playwright test
+
+      - name: Relatório do Playwright em caso de falha
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: e2e/playwright-report
+          retention-days: 7
+
       - name: Logs dos containers em caso de falha
         if: failure()
         run: docker compose logs

@@ -29,6 +29,12 @@ coverage/
 .vite/
 npm-debug.log*
 
+# Playwright (testes ponta a ponta)
+playwright-report/
+blob-report/
+test-results/
+.playwright/
+
 # IDEs e sistema operacional
 .idea/
 .vscode/*
