@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import type { Carrinho } from '../api/tipos'
@@ -112,6 +112,29 @@ describe('Fluxo completo da loja', () => {
     expect(await within(produto).findByRole('alert')).toHaveTextContent("Estoque insuficiente para 'Botas de Passos Silenciosos'.")
     expect(await within(sacola).findByText(botas.descricaoProduto)).toBeInTheDocument()
     expect(within(sacola).getByText('Total').nextElementSibling).toHaveTextContent('240,00 moedas de ouro')
+  })
+
+  it('não deixa preso na prateleira o erro de um carrinho que não existe mais', async () => {
+    // O id guardado no navegador aponta para um carrinho que o servidor perdeu entre a leitura e o clique
+    // (ex.: banco de desenvolvimento recriado). A sacola recomeça do zero, então a mensagem não faz mais sentido.
+    const carrinho = carrinhoVazio()
+    carrinhoIdStorage.gravar(carrinho.id)
+    servidor.use(
+      http.get('/api/produtos', () => HttpResponse.json([pocao, botas])),
+      http.get(`/api/carrinhos/${carrinho.id}`, () => HttpResponse.json(carrinho)),
+      http.post(`/api/carrinhos/${carrinho.id}/itens`, () =>
+        comProblema(404, 'carrinho.nao_encontrado', `Carrinho '${carrinho.id}' não encontrado.`),
+      ),
+    )
+    const usuario = userEvent.setup()
+    renderizar(<App />)
+
+    await usuario.click(await screen.findByRole('button', { name: `Adicionar ${pocao.descricaoProduto} à sacola` }))
+
+    await waitFor(() => expect(carrinhoIdStorage.ler()).toBeNull())
+    const produto = screen.getByRole('heading', { name: pocao.descricaoProduto }).closest('li') as HTMLElement
+    await waitFor(() => expect(within(produto).queryByRole('alert')).not.toBeInTheDocument())
+    expect(within(screen.getByRole('complementary', { name: 'Sua sacola' })).getByText(/Sua sacola está vazia/)).toBeInTheDocument()
   })
 
   it('avisa quando a API está fora do ar', async () => {

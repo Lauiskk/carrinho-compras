@@ -39,7 +39,7 @@ function useAlteracaoDoCarrinho<TVariaveis>(executar: (carrinhoId: string, varia
   const queryClient = useQueryClient()
   const { garantirCarrinho, definirCarrinho, esquecerCarrinho } = useCarrinhoContexto()
 
-  return useMutation({
+  const mutacao = useMutation({
     scope: { id: 'carrinho' },
     mutationFn: async (variaveis: TVariaveis) => {
       const carrinhoId = await garantirCarrinho()
@@ -63,6 +63,17 @@ function useAlteracaoDoCarrinho<TVariaveis>(executar: (carrinhoId: string, varia
       void queryClient.invalidateQueries({ queryKey: ['carrinho'] })
     },
   })
+
+  // Esquecido o carrinho, a mensagem fala de algo que não existe mais e a sacola já recomeçou vazia:
+  // some com ela para não ficar um erro preso ao lado do botão que o usuário acabou de clicar.
+  const { error, reset } = mutacao
+  useEffect(() => {
+    if (error instanceof ApiError && error.code === 'carrinho.nao_encontrado') {
+      reset()
+    }
+  }, [error, reset])
+
+  return mutacao
 }
 
 export const useAdicionarItem = () =>
