@@ -12,7 +12,7 @@ internal sealed class CarrinhoConfiguration : IEntityTypeConfiguration<Carrinho>
     {
         builder.ToTable("Carrinho", tabela =>
         {
-            tabela.HasCheckConstraint("CK_Carrinho_Status", "\"Status\" IN ('Aberto', 'Finalizado')");
+            tabela.HasCheckConstraint("CK_Carrinho_Status", "\"Status\" IN ('Aberto', 'Finalizado', 'Expirado')");
             tabela.HasCheckConstraint(
                 "CK_Carrinho_Valores",
                 "\"Subtotal\" >= 0 AND \"Desconto\" >= 0 AND \"Desconto\" <= \"Subtotal\" AND \"Total\" = \"Subtotal\" - \"Desconto\"");
@@ -25,7 +25,7 @@ internal sealed class CarrinhoConfiguration : IEntityTypeConfiguration<Carrinho>
             .HasColumnName("ID")
             .ValueGeneratedNever();
 
-        // Gravado como texto ("Aberto"/"Finalizado"): legível em consultas e estável se o enum mudar de ordem.
+        // Gravado como texto ("Aberto"/"Finalizado"/"Expirado"): legível em consultas e estável se o enum mudar de ordem.
         builder.Property(carrinho => carrinho.Status)
             .HasConversion<string>()
             .HasMaxLength(20);
@@ -37,7 +37,11 @@ internal sealed class CarrinhoConfiguration : IEntityTypeConfiguration<Carrinho>
         builder.Property(carrinho => carrinho.Desconto).HasPrecision(18, 2);
         builder.Property(carrinho => carrinho.Total).HasPrecision(18, 2);
 
+        // Só a sacola aberta com itens tem prazo; as demais têm ExpiraEm nulo.
+        builder.Property(carrinho => carrinho.ExpiraEm);
+
         builder.Ignore(carrinho => carrinho.EstaFinalizado);
+        builder.Ignore(carrinho => carrinho.EstaExpirado);
 
         builder.HasOne(carrinho => carrinho.Cupom)
             .WithMany()

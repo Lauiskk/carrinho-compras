@@ -7,6 +7,11 @@ using Testcontainers.PostgreSql;
 
 [assembly: AssemblyFixture(typeof(ApiFactory))]
 
+// Com reserva de estoque, o catálogo virou estado compartilhado: dois testes rodando ao mesmo tempo
+// disputam as mesmas unidades e um veria os números do outro. As requisições realmente simultâneas
+// continuam existindo dentro de ConcorrenciaTests, que é onde a concorrência é o assunto.
+[assembly: Xunit.v3.Parallelization(Mode = Xunit.Sdk.ParallelMode.None)]
+
 namespace CarrinhoCompras.Api.IntegrationTests.Suporte;
 
 /// <summary>

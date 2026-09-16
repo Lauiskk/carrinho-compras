@@ -8,6 +8,10 @@ public static class CarrinhoErros
         "carrinho.finalizado",
         "Este carrinho já foi finalizado e não pode mais ser alterado. Crie um novo carrinho para continuar comprando.");
 
+    public static readonly Error Expirado = Error.Conflict(
+        "carrinho.expirado",
+        "Sua sacola expirou e as mercadorias voltaram para a loja. Comece uma nova compra.");
+
     public static readonly Error QuantidadeInvalida = Error.Validation(
         "carrinho.quantidade_invalida",
         "A quantidade deve ser maior que zero.");

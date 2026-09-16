@@ -42,7 +42,7 @@ public sealed class SaudeEDocumentacaoTests(ApiFactory api)
 
         var esquemas = raiz.GetProperty("components").GetProperty("schemas");
         esquemas.GetProperty("StatusCarrinho").GetProperty("enum").EnumerateArray().Select(valor => valor.GetString())
-            .ShouldBe(new[] { "Aberto", "Finalizado" });
+            .ShouldBe(new[] { "Aberto", "Finalizado", "Expirado" });
         esquemas.GetProperty("CarrinhoResponse").GetProperty("properties").GetProperty("total").GetProperty("format").GetString()
             .ShouldBe("decimal");
     }

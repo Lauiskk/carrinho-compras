@@ -12,7 +12,7 @@ public sealed class ItensTests(ApiFactory api)
     [Fact]
     public async Task Adicionar_sem_quantidade_entra_com_1_e_expoe_preco_unitario_estoque_e_preco_do_item()
     {
-        var produto = Suporte.Catalogo.ComEstoqueDePeloMenos(1);
+        var produto = await _cliente.ProdutoComDisponivelAsync(1);
         var carrinho = await _cliente.CriarCarrinhoAsync();
 
         var atualizado = await _cliente.AdicionarItemComSucessoAsync(carrinho.Id, produto.Id);
@@ -31,7 +31,7 @@ public sealed class ItensTests(ApiFactory api)
     [Fact]
     public async Task Adicionar_produto_novo_entra_com_a_quantidade_informada()
     {
-        var produto = Suporte.Catalogo.ComEstoqueDePeloMenos(2);
+        var produto = await _cliente.ProdutoComDisponivelAsync(2);
         var carrinho = await _cliente.CriarCarrinhoAsync();
 
         var atualizado = await _cliente.AdicionarItemComSucessoAsync(carrinho.Id, produto.Id, quantidade: 2);
@@ -44,7 +44,7 @@ public sealed class ItensTests(ApiFactory api)
     [Fact]
     public async Task Adicionar_produto_que_ja_esta_no_carrinho_soma_a_quantidade()
     {
-        var produto = Suporte.Catalogo.ComEstoqueDePeloMenos(3);
+        var produto = await _cliente.ProdutoComDisponivelAsync(3);
         var carrinho = await _cliente.CriarCarrinhoAsync();
         await _cliente.AdicionarItemComSucessoAsync(carrinho.Id, produto.Id, quantidade: 1);
 
@@ -72,9 +72,10 @@ public sealed class ItensTests(ApiFactory api)
     [Fact]
     public async Task Adicionar_alem_do_estoque_retorna_422_e_nao_altera_o_carrinho()
     {
-        var produto = Suporte.Catalogo.ComMenorEstoquePositivo();
+        // O teste cria a própria escassez: leva tudo o que está disponível e tenta mais uma unidade.
+        var produto = await _cliente.ProdutoComDisponivelAsync(1);
         var carrinho = await _cliente.CriarCarrinhoAsync();
-        await _cliente.AdicionarItemComSucessoAsync(carrinho.Id, produto.Id, produto.QuantidadeEstoque);
+        await _cliente.AdicionarItemComSucessoAsync(carrinho.Id, produto.Id, produto.QuantidadeDisponivel);
         var antes = await _cliente.ObterCarrinhoComSucessoAsync(carrinho.Id);
 
         var resposta = await _cliente.AdicionarItemAsync(carrinho.Id, produto.Id, quantidade: 1);
@@ -105,7 +106,7 @@ public sealed class ItensTests(ApiFactory api)
     [Fact]
     public async Task Alterar_quantidade_substitui_o_valor_e_recalcula_aumentando_e_diminuindo()
     {
-        var produto = Suporte.Catalogo.ComEstoqueDePeloMenos(7);
+        var produto = await _cliente.ProdutoComDisponivelAsync(7);
         var carrinho = await _cliente.CriarCarrinhoAsync();
         await _cliente.AdicionarItemComSucessoAsync(carrinho.Id, produto.Id, quantidade: 2);
 
@@ -137,7 +138,7 @@ public sealed class ItensTests(ApiFactory api)
     [InlineData(-3)]
     public async Task Alterar_para_quantidade_menor_ou_igual_a_zero_retorna_400(int quantidade)
     {
-        var produto = Suporte.Catalogo.ComEstoqueDePeloMenos(1);
+        var produto = await _cliente.ProdutoComDisponivelAsync(1);
         var carrinho = await _cliente.CriarCarrinhoAsync();
         await _cliente.AdicionarItemComSucessoAsync(carrinho.Id, produto.Id);
 
@@ -150,11 +151,12 @@ public sealed class ItensTests(ApiFactory api)
     [Fact]
     public async Task Alterar_para_quantidade_acima_do_estoque_retorna_422()
     {
-        var produto = Suporte.Catalogo.ComMenorEstoquePositivo();
+        var produto = await _cliente.ProdutoComDisponivelAsync(1);
         var carrinho = await _cliente.CriarCarrinhoAsync();
         await _cliente.AdicionarItemComSucessoAsync(carrinho.Id, produto.Id);
 
-        var resposta = await _cliente.AlterarQuantidadeAsync(carrinho.Id, produto.Id, produto.QuantidadeEstoque + 1);
+        // Uma unidade já está reservada por este carrinho, então pedir "disponível + 1" passa do que sobrou.
+        var resposta = await _cliente.AlterarQuantidadeAsync(carrinho.Id, produto.Id, produto.QuantidadeDisponivel + 1);
 
         await resposta.DeveSerProblemaAsync(HttpStatusCode.UnprocessableEntity, "produto.estoque_insuficiente");
     }
@@ -162,8 +164,8 @@ public sealed class ItensTests(ApiFactory api)
     [Fact]
     public async Task Remover_item_recalcula_subtotal_desconto_e_total()
     {
-        var produtoA = Suporte.Catalogo.ComEstoqueDePeloMenos(2);
-        var produtoB = Suporte.Catalogo.ComEstoqueDePeloMenos(1, diferenteDe: produtoA);
+        var produtoA = await _cliente.ProdutoComDisponivelAsync(2);
+        var produtoB = await _cliente.ProdutoComDisponivelAsync(1, produtoA.Id);
         var cupom = Suporte.Catalogo.Cupons[0];
         var carrinho = await _cliente.CriarCarrinhoAsync();
         await _cliente.AdicionarItemComSucessoAsync(carrinho.Id, produtoA.Id, quantidade: 2);

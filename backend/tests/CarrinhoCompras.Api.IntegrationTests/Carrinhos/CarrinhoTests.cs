@@ -59,7 +59,7 @@ public sealed class CarrinhoTests(ApiFactory api)
     public async Task Contrato_json_do_carrinho_usa_os_nomes_esperados_e_status_como_texto()
     {
         var carrinho = await _cliente.CriarCarrinhoAsync();
-        var produto = Suporte.Catalogo.ComEstoqueDePeloMenos(1);
+        var produto = await _cliente.ProdutoComDisponivelAsync(1);
         await _cliente.AdicionarItemComSucessoAsync(carrinho.Id, produto.Id);
 
         var resposta = await _cliente.ObterCarrinhoAsync(carrinho.Id);
@@ -67,11 +67,11 @@ public sealed class CarrinhoTests(ApiFactory api)
         var raiz = json.RootElement;
 
         NomesDasPropriedades(raiz).ShouldBe(
-            new[] { "id", "status", "itens", "cupom", "subtotal", "desconto", "total", "criadoEm", "finalizadoEm" },
+            new[] { "id", "status", "itens", "cupom", "subtotal", "desconto", "total", "criadoEm", "finalizadoEm", "expiraEm" },
             ignoreOrder: true);
         raiz.GetProperty("status").GetString().ShouldBe("Aberto");
         NomesDasPropriedades(raiz.GetProperty("itens")[0]).ShouldBe(
-            new[] { "produtoId", "descricaoProduto", "precoLiquidoUnitario", "quantidadeEstoque", "quantidade", "precoItem" },
+            new[] { "produtoId", "descricaoProduto", "precoLiquidoUnitario", "quantidadeEstoque", "quantidadeDisponivel", "quantidade", "precoItem" },
             ignoreOrder: true);
     }
 

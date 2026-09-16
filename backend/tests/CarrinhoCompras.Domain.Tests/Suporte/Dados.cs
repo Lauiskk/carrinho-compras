@@ -29,6 +29,28 @@ internal static class Dados
         return carrinho;
     }
 
+    // ---------------------------------------------------------------------------------------------------
+    // Atalhos que usam Agora. A maioria dos testes é sobre as regras, não sobre o relógio; os testes de
+    // expiração chamam os métodos do domínio com o instante explícito, que é onde o tempo importa.
+    // ---------------------------------------------------------------------------------------------------
+    public static Result AdicionarItem(this Carrinho carrinho, Produto produto, int quantidade) =>
+        carrinho.AdicionarItem(produto, quantidade, Agora);
+
+    public static Result AlterarQuantidadeItem(this Carrinho carrinho, int produtoId, int quantidade) =>
+        carrinho.AlterarQuantidadeItem(produtoId, quantidade, Agora);
+
+    public static Result RemoverItem(this Carrinho carrinho, int produtoId) =>
+        carrinho.RemoverItem(produtoId, Agora);
+
+    public static Result AplicarCupom(this Carrinho carrinho, Cupom cupom) =>
+        carrinho.AplicarCupom(cupom, Agora);
+
+    public static Result RemoverCupom(this Carrinho carrinho) =>
+        carrinho.RemoverCupom(Agora);
+
+    public static Result VerificarSePodeSerAlterado(this Carrinho carrinho) =>
+        carrinho.VerificarSePodeSerAlterado(Agora);
+
     public static void DeveTerSucesso(this Result resultado) =>
         resultado.IsSuccess.ShouldBeTrue($"Esperava sucesso, mas falhou com: {resultado.Error}");
 
@@ -48,5 +70,6 @@ internal static class Dados
     /// <summary>Retrato do estado observável do carrinho, para provar que uma operação rejeitada não mudou nada.</summary>
     public static string Retrato(this Carrinho carrinho) =>
         $"{carrinho.Status}|cupom:{carrinho.CupomId}|{carrinho.Subtotal}|{carrinho.Desconto}|{carrinho.Total}|" +
-        string.Join(",", carrinho.Itens.Select(item => $"{item.ProdutoId}x{item.Quantidade}={item.PrecoItem}"));
+        string.Join(",", carrinho.Itens.Select(item => $"{item.ProdutoId}x{item.Quantidade}={item.PrecoItem}")) +
+        $"|reservas:{string.Join(",", carrinho.Itens.Select(item => $"{item.ProdutoId}={item.Produto.QuantidadeReservada}"))}";
 }

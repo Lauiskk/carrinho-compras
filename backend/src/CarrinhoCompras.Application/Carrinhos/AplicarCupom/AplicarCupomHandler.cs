@@ -5,18 +5,27 @@ using CarrinhoCompras.Domain.Cupons;
 
 namespace CarrinhoCompras.Application.Carrinhos.AplicarCupom;
 
-public sealed class AplicarCupomHandler(ICarrinhoRepository carrinhos, ICupomRepository cupons, IUnitOfWork unitOfWork)
+public sealed class AplicarCupomHandler(
+    ICarrinhoRepository carrinhos,
+    ICupomRepository cupons,
+    IProdutoRepository produtos,
+    IUnitOfWork unitOfWork,
+    TimeProvider timeProvider)
 {
     public async Task<Result<CarrinhoResponse>> HandleAsync(
         Guid carrinhoId, AplicarCupomRequest request, CancellationToken cancellationToken)
     {
+        var agora = timeProvider.AgoraUtc();
+        await unitOfWork.IniciarTransacaoAsync(cancellationToken);
+        await produtos.BloquearParaAlterarEstoqueAsync(carrinhoId, null, cancellationToken);
+
         var carrinho = await carrinhos.ObterAsync(carrinhoId, cancellationToken);
         if (carrinho is null)
         {
             return CarrinhoErros.NaoEncontrado(carrinhoId);
         }
 
-        var podeAlterar = carrinho.VerificarSePodeSerAlterado();
+        var podeAlterar = carrinho.VerificarSePodeSerAlterado(agora);
         if (podeAlterar.IsFailure)
         {
             return podeAlterar.Error;
@@ -29,7 +38,7 @@ public sealed class AplicarCupomHandler(ICarrinhoRepository carrinhos, ICupomRep
             return CupomErros.Invalido(codigo);
         }
 
-        var resultado = carrinho.AplicarCupom(cupom);
+        var resultado = carrinho.AplicarCupom(cupom, agora);
         if (resultado.IsFailure)
         {
             return resultado.Error;

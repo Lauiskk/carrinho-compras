@@ -16,7 +16,7 @@ public sealed class ConcorrenciaTests(ApiFactory api)
     [Fact]
     public async Task Adicoes_simultaneas_ao_mesmo_item_nao_perdem_atualizacoes()
     {
-        var produto = Suporte.Catalogo.ComEstoqueDePeloMenos(RequisicoesSimultaneas + 1);
+        var produto = await _cliente.ProdutoComDisponivelAsync(RequisicoesSimultaneas + 1);
         var carrinho = await _cliente.CriarCarrinhoAsync();
         await _cliente.AdicionarItemComSucessoAsync(carrinho.Id, produto.Id, quantidade: 1);
 
@@ -31,7 +31,7 @@ public sealed class ConcorrenciaTests(ApiFactory api)
     [Fact]
     public async Task Primeira_adicao_simultanea_do_mesmo_produto_gera_uma_unica_linha()
     {
-        var produto = Suporte.Catalogo.ComEstoqueDePeloMenos(RequisicoesSimultaneas);
+        var produto = await _cliente.ProdutoComDisponivelAsync(RequisicoesSimultaneas);
         var carrinho = await _cliente.CriarCarrinhoAsync();
 
         var respostas = await Task.WhenAll(Enumerable.Range(0, RequisicoesSimultaneas)

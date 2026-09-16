@@ -80,7 +80,8 @@ public sealed class ItensTests
 
         resultado.DeveFalharComCodigo("produto.estoque_insuficiente", ErrorType.BusinessRule);
         resultado.Error!.Message.ShouldBe(
-            "Estoque insuficiente para 'Botas de Passos Silenciosos': o carrinho ficaria com 3 unidade(s), mas há apenas 2 em estoque.");
+            "Estoque insuficiente para 'Botas de Passos Silenciosos': você pediu mais 1 unidade(s), " +
+            "mas há apenas 0 disponível(is) no momento.");
         carrinho.Retrato().ShouldBe(antes);
     }
 

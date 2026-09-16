@@ -1,3 +1,4 @@
+using CarrinhoCompras.Application.Produtos;
 using CarrinhoCompras.Domain.Cupons;
 using CarrinhoCompras.Domain.Produtos;
 using CarrinhoCompras.Infrastructure.Persistence.Seed;
@@ -5,8 +6,13 @@ using CarrinhoCompras.Infrastructure.Persistence.Seed;
 namespace CarrinhoCompras.Api.IntegrationTests.Suporte;
 
 /// <summary>
-/// Dados de referência lidos dos mesmos arquivos JSON que semeiam o banco. Os testes escolhem produtos pelas
-/// características de que precisam (ex.: estoque mínimo), então continuam válidos se o catálogo for trocado.
+/// Dados de referência lidos dos mesmos arquivos JSON que semeiam o banco. Servem para o que não muda —
+/// id, descrição e preço.
+/// <para>
+/// <b>Quantidades não vêm daqui.</b> Com reserva de estoque, o número disponível é dado vivo: cai quando
+/// outra sacola pega unidades e o estoque físico cai em cada checkout. Quem precisa de um produto com certa
+/// folga usa <see cref="ClienteApi.ProdutoComDisponivelAsync"/>, que pergunta à API o estado do momento.
+/// </para>
 /// </summary>
 internal static class Catalogo
 {
@@ -14,15 +20,14 @@ internal static class Catalogo
 
     public static IReadOnlyList<Cupom> Cupons { get; } = CatalogoSeed.Cupons();
 
-    public static Produto ComEstoqueDePeloMenos(int quantidade, Produto? diferenteDe = null) =>
-        Produtos.FirstOrDefault(produto => produto.QuantidadeEstoque >= quantidade && produto.Id != diferenteDe?.Id)
-        ?? throw new InvalidOperationException($"O catálogo não tem produto com estoque de pelo menos {quantidade}.");
-
-    public static Produto ComMenorEstoquePositivo() =>
-        Produtos.Where(produto => produto.QuantidadeEstoque > 0).MinBy(produto => produto.QuantidadeEstoque)
-        ?? throw new InvalidOperationException("O catálogo não tem produto com estoque.");
-
     public static int IdInexistente => Produtos.Max(produto => produto.Id) + 1000;
+
+    /// <summary>Identidade do catálogo: o que o seed gravou e nenhuma compra altera.</summary>
+    public static (int Id, string Descricao, decimal Preco) Identidade(this ProdutoResponse produto) =>
+        (produto.Id, produto.DescricaoProduto, produto.PrecoLiquido);
+
+    public static (int Id, string Descricao, decimal Preco) Identidade(this Produto produto) =>
+        (produto.Id, produto.DescricaoProduto, produto.PrecoLiquido);
 
     public static decimal Desconto(decimal subtotal, Cupom cupom) =>
         decimal.Round(subtotal * cupom.PercentualDesconto / 100m, 2, MidpointRounding.AwayFromZero);

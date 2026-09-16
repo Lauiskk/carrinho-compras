@@ -5,11 +5,23 @@ using CarrinhoCompras.Domain.Produtos;
 namespace CarrinhoCompras.Domain.Carrinhos;
 
 /// <summary>
-/// Raiz do agregado de carrinho. Concentra todas as regras: itens, estoque, cupom, cálculos e finalização.
-/// Toda alteração verifica primeiro se o carrinho está aberto e termina recalculando subtotal, desconto e total.
+/// Raiz do agregado de carrinho. Concentra todas as regras: itens, reserva de estoque, cupom, cálculos,
+/// expiração e finalização.
+/// <para>
+/// Enquanto está aberto, o carrinho <b>segura</b> as unidades dos seus itens: elas saem da vitrine assim que
+/// entram na sacola e voltam quando o item sai, quando a quantidade diminui ou quando a sacola expira. No
+/// checkout a reserva vira venda e o estoque físico cai de vez.
+/// </para>
+/// <para>
+/// Toda alteração começa expirando a sacola se o prazo venceu, verifica se ela ainda é alterável, e termina
+/// renovando o prazo e recalculando subtotal, desconto e total.
+/// </para>
 /// </summary>
 public sealed class Carrinho
 {
+    /// <summary>Por quanto tempo uma sacola parada continua segurando as unidades dos seus itens.</summary>
+    public static readonly TimeSpan JanelaDeReserva = TimeSpan.FromMinutes(15);
+
     private readonly List<ItemCarrinho> _itens = [];
 
     private Carrinho(Guid id, DateTimeOffset criadoEm)
@@ -43,26 +55,69 @@ public sealed class Carrinho
 
     public DateTimeOffset? FinalizadoEm { get; private set; }
 
+    /// <summary>
+    /// Instante em que a reserva vence. Só existe enquanto o carrinho está aberto e tem itens segurando
+    /// unidades — uma sacola vazia não prende nada, então não tem prazo.
+    /// </summary>
+    public DateTimeOffset? ExpiraEm { get; private set; }
+
     public bool EstaFinalizado => Status == StatusCarrinho.Finalizado;
+
+    public bool EstaExpirado => Status == StatusCarrinho.Expirado;
 
     public static Carrinho Criar(DateTimeOffset agora) => new(Guid.CreateVersion7(agora), agora);
 
     /// <summary>
-    /// Um carrinho finalizado não aceita alterações. Permite verificar isso antes de buscar outros dados
-    /// (produto, cupom), para que a resposta seja sempre "carrinho finalizado", qualquer que seja o pedido.
+    /// Se o prazo da reserva venceu, devolve as unidades à loja e encerra o carrinho.
+    /// Idempotente: num carrinho já expirado, finalizado ou ainda no prazo, não faz nada.
     /// </summary>
-    public Result VerificarSePodeSerAlterado() => EstaFinalizado ? CarrinhoErros.Finalizado : Result.Success();
+    /// <returns><see langword="true"/> se este chamado foi quem expirou o carrinho.</returns>
+    public bool ExpirarSeVencido(DateTimeOffset agora)
+    {
+        if (Status != StatusCarrinho.Aberto || ExpiraEm is null || ExpiraEm > agora)
+        {
+            return false;
+        }
+
+        foreach (var item in _itens)
+        {
+            item.Produto.LiberarReserva(item.Quantidade);
+        }
+
+        Status = StatusCarrinho.Expirado;
+        ExpiraEm = null;
+        return true;
+    }
 
     /// <summary>
-    /// Adiciona o produto com a quantidade informada. Se o produto já estiver no carrinho, soma à quantidade existente.
+    /// Expira o carrinho se for o caso e diz se ele ainda aceita alterações. Permite responder
+    /// "finalizado" ou "expirado" antes de buscar outros dados (produto, cupom), para que a resposta seja
+    /// sempre sobre o estado do carrinho, qualquer que seja o pedido.
     /// </summary>
-    public Result AdicionarItem(Produto produto, int quantidade)
+    public Result VerificarSePodeSerAlterado(DateTimeOffset agora)
     {
-        ArgumentNullException.ThrowIfNull(produto);
+        ExpirarSeVencido(agora);
 
         if (EstaFinalizado)
         {
             return CarrinhoErros.Finalizado;
+        }
+
+        return EstaExpirado ? CarrinhoErros.Expirado : Result.Success();
+    }
+
+    /// <summary>
+    /// Adiciona o produto com a quantidade informada, reservando as unidades. Se o produto já estiver no
+    /// carrinho, soma à quantidade existente (as unidades que já estavam lá seguem reservadas).
+    /// </summary>
+    public Result AdicionarItem(Produto produto, int quantidade, DateTimeOffset agora)
+    {
+        ArgumentNullException.ThrowIfNull(produto);
+
+        var alteravel = VerificarSePodeSerAlterado(agora);
+        if (alteravel.IsFailure)
+        {
+            return alteravel.Error;
         }
 
         if (quantidade <= 0)
@@ -70,35 +125,39 @@ public sealed class Carrinho
             return CarrinhoErros.QuantidadeInvalida;
         }
 
-        var item = BuscarItem(produto.Id);
-        var quantidadeResultante = (long)(item?.Quantidade ?? 0) + quantidade;
-        if (!produto.PossuiEstoquePara(quantidadeResultante))
+        // Só falta prender as unidades novas: as que já estão nesta sacola continuam reservadas por ela.
+        if (!produto.PossuiDisponivelPara(quantidade))
         {
-            return ProdutoErros.EstoqueInsuficiente(produto, quantidadeResultante);
+            return ProdutoErros.EstoqueInsuficiente(produto, quantidade);
         }
 
+        produto.Reservar(quantidade);
+
+        var item = BuscarItem(produto.Id);
         if (item is null)
         {
             _itens.Add(new ItemCarrinho(Id, produto, quantidade));
         }
         else
         {
-            // Seguro: a quantidade resultante cabe no estoque, que é um int.
-            item.DefinirQuantidade((int)quantidadeResultante);
+            // Seguro: o que esta sacola já reservou mais o disponível nunca passa do estoque, que é um int.
+            item.DefinirQuantidade(item.Quantidade + quantidade);
         }
 
-        Recalcular();
+        Concluir(agora);
         return Result.Success();
     }
 
     /// <summary>
-    /// Substitui a quantidade de um item que já está no carrinho (pode aumentar ou diminuir).
+    /// Substitui a quantidade de um item que já está no carrinho (pode aumentar ou diminuir), reservando
+    /// ou devolvendo apenas a diferença.
     /// </summary>
-    public Result AlterarQuantidadeItem(int produtoId, int quantidade)
+    public Result AlterarQuantidadeItem(int produtoId, int quantidade, DateTimeOffset agora)
     {
-        if (EstaFinalizado)
+        var alteravel = VerificarSePodeSerAlterado(agora);
+        if (alteravel.IsFailure)
         {
-            return CarrinhoErros.Finalizado;
+            return alteravel.Error;
         }
 
         if (quantidade <= 0)
@@ -112,21 +171,32 @@ public sealed class Carrinho
             return CarrinhoErros.ItemNaoEncontrado(produtoId);
         }
 
-        if (!item.Produto.PossuiEstoquePara(quantidade))
+        var diferenca = quantidade - item.Quantidade;
+        if (diferenca > 0)
         {
-            return ProdutoErros.EstoqueInsuficiente(item.Produto, quantidade);
+            if (!item.Produto.PossuiDisponivelPara(diferenca))
+            {
+                return ProdutoErros.EstoqueInsuficiente(item.Produto, diferenca);
+            }
+
+            item.Produto.Reservar(diferenca);
+        }
+        else if (diferenca < 0)
+        {
+            item.Produto.LiberarReserva(-diferenca);
         }
 
         item.DefinirQuantidade(quantidade);
-        Recalcular();
+        Concluir(agora);
         return Result.Success();
     }
 
-    public Result RemoverItem(int produtoId)
+    public Result RemoverItem(int produtoId, DateTimeOffset agora)
     {
-        if (EstaFinalizado)
+        var alteravel = VerificarSePodeSerAlterado(agora);
+        if (alteravel.IsFailure)
         {
-            return CarrinhoErros.Finalizado;
+            return alteravel.Error;
         }
 
         var item = BuscarItem(produtoId);
@@ -135,49 +205,56 @@ public sealed class Carrinho
             return CarrinhoErros.ItemNaoEncontrado(produtoId);
         }
 
+        item.Produto.LiberarReserva(item.Quantidade);
         _itens.Remove(item);
-        Recalcular();
+        Concluir(agora);
         return Result.Success();
     }
 
     /// <summary>
     /// Aplica o cupom. Como só existe um cupom ativo por vez, um cupom aplicado antes é substituído.
     /// </summary>
-    public Result AplicarCupom(Cupom cupom)
+    public Result AplicarCupom(Cupom cupom, DateTimeOffset agora)
     {
         ArgumentNullException.ThrowIfNull(cupom);
 
-        if (EstaFinalizado)
+        var alteravel = VerificarSePodeSerAlterado(agora);
+        if (alteravel.IsFailure)
         {
-            return CarrinhoErros.Finalizado;
+            return alteravel.Error;
         }
 
         Cupom = cupom;
         CupomId = cupom.Id;
-        Recalcular();
+        Concluir(agora);
         return Result.Success();
     }
 
     /// <summary>Remove o cupom ativo. Sem cupom aplicado, não há o que remover e a operação não falha.</summary>
-    public Result RemoverCupom()
+    public Result RemoverCupom(DateTimeOffset agora)
     {
-        if (EstaFinalizado)
+        var alteravel = VerificarSePodeSerAlterado(agora);
+        if (alteravel.IsFailure)
         {
-            return CarrinhoErros.Finalizado;
+            return alteravel.Error;
         }
 
         Cupom = null;
         CupomId = null;
-        Recalcular();
+        Concluir(agora);
         return Result.Success();
     }
 
-    /// <summary>Checkout: congela o carrinho, que deixa de aceitar alterações.</summary>
+    /// <summary>
+    /// Checkout: a reserva de cada item vira venda (o estoque físico cai) e o carrinho congela,
+    /// deixando de aceitar alterações e de ter prazo.
+    /// </summary>
     public Result Finalizar(DateTimeOffset agora)
     {
-        if (EstaFinalizado)
+        var alteravel = VerificarSePodeSerAlterado(agora);
+        if (alteravel.IsFailure)
         {
-            return CarrinhoErros.Finalizado;
+            return alteravel.Error;
         }
 
         if (_itens.Count == 0)
@@ -185,15 +262,25 @@ public sealed class Carrinho
             return CarrinhoErros.Vazio;
         }
 
+        foreach (var item in _itens)
+        {
+            item.Produto.ConfirmarVenda(item.Quantidade);
+        }
+
         Status = StatusCarrinho.Finalizado;
         FinalizadoEm = agora;
+        ExpiraEm = null;
         return Result.Success();
     }
 
     private ItemCarrinho? BuscarItem(int produtoId) => _itens.Find(item => item.ProdutoId == produtoId);
 
-    private void Recalcular()
+    /// <summary>Fecha uma alteração: renova o prazo da reserva e recalcula os valores.</summary>
+    private void Concluir(DateTimeOffset agora)
     {
+        // Sacola vazia não segura nada, então não tem prazo para vencer.
+        ExpiraEm = _itens.Count > 0 ? agora + JanelaDeReserva : null;
+
         Subtotal = _itens.Sum(item => item.PrecoItem);
         Desconto = Cupom?.CalcularDesconto(Subtotal) ?? 0m;
         Total = Subtotal - Desconto;

@@ -90,7 +90,11 @@ public sealed class CupomTests(ApiFactory api)
         semCupom.Cupom.ShouldBeNull();
         semCupom.Desconto.ShouldBe(0m);
         semCupom.Total.ShouldBe(subtotal);
-        deNovo.ShouldBeEquivalentTo(semCupom);
+
+        // Repetir não muda nada de negócio. O prazo da reserva é a exceção: mexer na sacola é atividade,
+        // e atividade renova o tempo que as unidades ficam seguradas.
+        deNovo.ShouldBeEquivalentTo(semCupom with { ExpiraEm = deNovo.ExpiraEm });
+        deNovo.ExpiraEm.ShouldNotBeNull().ShouldBeGreaterThanOrEqualTo(semCupom.ExpiraEm!.Value);
     }
 
     [Fact]
@@ -98,7 +102,7 @@ public sealed class CupomTests(ApiFactory api)
     {
         var carrinho = await _cliente.CriarCarrinhoAsync();
         var cupom = Suporte.Catalogo.Cupons[0];
-        var produto = Suporte.Catalogo.ComEstoqueDePeloMenos(2);
+        var produto = await _cliente.ProdutoComDisponivelAsync(2);
 
         var vazio = await (await _cliente.AplicarCupomAsync(carrinho.Id, cupom.CodigoCupom)).DeveTerSucessoAsync<CarrinhoResponse>();
         var comItens = await _cliente.AdicionarItemComSucessoAsync(carrinho.Id, produto.Id, quantidade: 2);
@@ -110,8 +114,8 @@ public sealed class CupomTests(ApiFactory api)
 
     private async Task<(CarrinhoResponse Carrinho, decimal Subtotal)> CriarCarrinhoComItensAsync()
     {
-        var produtoA = Suporte.Catalogo.ComEstoqueDePeloMenos(3);
-        var produtoB = Suporte.Catalogo.ComEstoqueDePeloMenos(1, diferenteDe: produtoA);
+        var produtoA = await _cliente.ProdutoComDisponivelAsync(3);
+        var produtoB = await _cliente.ProdutoComDisponivelAsync(1, produtoA.Id);
         var carrinho = await _cliente.CriarCarrinhoAsync();
         await _cliente.AdicionarItemComSucessoAsync(carrinho.Id, produtoA.Id, quantidade: 3);
         var atualizado = await _cliente.AdicionarItemComSucessoAsync(carrinho.Id, produtoB.Id);

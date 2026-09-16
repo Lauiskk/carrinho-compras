@@ -2,6 +2,7 @@ using CarrinhoCompras.Application.Carrinhos.AdicionarItem;
 using CarrinhoCompras.Application.Carrinhos.AlterarQuantidadeItem;
 using CarrinhoCompras.Application.Carrinhos.AplicarCupom;
 using CarrinhoCompras.Application.Carrinhos.CriarCarrinho;
+using CarrinhoCompras.Application.Carrinhos.ExpirarReservas;
 using CarrinhoCompras.Application.Carrinhos.FinalizarCarrinho;
 using CarrinhoCompras.Application.Carrinhos.ObterCarrinho;
 using CarrinhoCompras.Application.Carrinhos.RemoverCupom;
@@ -32,6 +33,7 @@ public static class DependencyInjection
         services.AddScoped<AplicarCupomHandler>();
         services.AddScoped<RemoverCupomHandler>();
         services.AddScoped<FinalizarCarrinhoHandler>();
+        services.AddScoped<ExpirarReservasVencidasHandler>();
 
         return services;
     }

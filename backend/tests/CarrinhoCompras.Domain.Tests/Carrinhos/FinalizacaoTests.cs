@@ -12,7 +12,7 @@ public sealed class FinalizacaoTests
     {
         var carrinho = Dados.CarrinhoCom((Dados.Produto(preco: 10.50m), 2));
         carrinho.AplicarCupom(Dados.Cupom(10m)).DeveTerSucesso();
-        var momento = Dados.Agora.AddMinutes(30);
+        var momento = Dados.Agora.AddMinutes(5); // dentro da janela de reserva
 
         carrinho.Finalizar(momento).DeveTerSucesso();
 

@@ -20,6 +20,18 @@ public sealed class CarrinhoComprasDbContext(DbContextOptions<CarrinhoComprasDbC
 
     public DbSet<Carrinho> Carrinhos => Set<Carrinho>();
 
+    /// <summary>
+    /// Abre a transação que sustenta os bloqueios de linha do estoque. Idempotente: chamar duas vezes no
+    /// mesmo caso de uso não abre uma segunda.
+    /// </summary>
+    public async Task IniciarTransacaoAsync(CancellationToken cancellationToken)
+    {
+        if (Database.CurrentTransaction is null)
+        {
+            await Database.BeginTransactionAsync(cancellationToken);
+        }
+    }
+
     public async Task CommitAsync(CancellationToken cancellationToken)
     {
         MarcarCarrinhosComItensAlterados();
@@ -27,6 +39,10 @@ public sealed class CarrinhoComprasDbContext(DbContextOptions<CarrinhoComprasDbC
         try
         {
             await SaveChangesAsync(cancellationToken);
+            if (Database.CurrentTransaction is not null)
+            {
+                await Database.CurrentTransaction.CommitAsync(cancellationToken);
+            }
         }
         catch (DbUpdateConcurrencyException ex)
         {

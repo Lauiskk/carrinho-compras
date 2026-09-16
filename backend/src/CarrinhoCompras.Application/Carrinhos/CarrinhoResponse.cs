@@ -13,6 +13,7 @@ namespace CarrinhoCompras.Application.Carrinhos;
 /// <param name="Total">Subtotal menos desconto.</param>
 /// <param name="CriadoEm">Data de criação (UTC).</param>
 /// <param name="FinalizadoEm">Data do checkout (UTC), se finalizado.</param>
+/// <param name="ExpiraEm">Instante (UTC) em que a reserva dos itens vence, se o carrinho está aberto e tem itens.</param>
 public sealed record CarrinhoResponse(
     Guid Id,
     StatusCarrinho Status,
@@ -22,7 +23,8 @@ public sealed record CarrinhoResponse(
     decimal Desconto,
     decimal Total,
     DateTimeOffset CriadoEm,
-    DateTimeOffset? FinalizadoEm)
+    DateTimeOffset? FinalizadoEm,
+    DateTimeOffset? ExpiraEm)
 {
     public static CarrinhoResponse De(Carrinho carrinho) => new(
         carrinho.Id,
@@ -33,21 +35,24 @@ public sealed record CarrinhoResponse(
         carrinho.Desconto,
         carrinho.Total,
         carrinho.CriadoEm,
-        carrinho.FinalizadoEm);
+        carrinho.FinalizadoEm,
+        carrinho.ExpiraEm);
 }
 
 /// <summary>Item do carrinho.</summary>
 /// <param name="ProdutoId">Identificador do produto.</param>
 /// <param name="DescricaoProduto">Descrição do produto.</param>
 /// <param name="PrecoLiquidoUnitario">Preço líquido unitário do produto.</param>
-/// <param name="QuantidadeEstoque">Quantidade disponível em estoque do produto.</param>
-/// <param name="Quantidade">Quantidade do produto no carrinho.</param>
+/// <param name="QuantidadeEstoque">Unidades físicas em estoque do produto.</param>
+/// <param name="QuantidadeDisponivel">Quantidade disponível em estoque: quantas unidades ainda dá para somar a este item.</param>
+/// <param name="Quantidade">Quantidade do produto no carrinho (já reservada por ele).</param>
 /// <param name="PrecoItem">Preço do item: preço unitário × quantidade.</param>
 public sealed record ItemCarrinhoResponse(
     int ProdutoId,
     string DescricaoProduto,
     decimal PrecoLiquidoUnitario,
     int QuantidadeEstoque,
+    int QuantidadeDisponivel,
     int Quantidade,
     decimal PrecoItem)
 {
@@ -56,6 +61,7 @@ public sealed record ItemCarrinhoResponse(
         item.Produto.DescricaoProduto,
         item.PrecoUnitario,
         item.Produto.QuantidadeEstoque,
+        item.Produto.QuantidadeDisponivel,
         item.Quantidade,
         item.PrecoItem);
 }

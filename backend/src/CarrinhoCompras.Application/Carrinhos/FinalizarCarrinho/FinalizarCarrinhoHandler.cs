@@ -4,10 +4,14 @@ using CarrinhoCompras.Domain.Common;
 
 namespace CarrinhoCompras.Application.Carrinhos.FinalizarCarrinho;
 
-public sealed class FinalizarCarrinhoHandler(ICarrinhoRepository carrinhos, IUnitOfWork unitOfWork, TimeProvider timeProvider)
+public sealed class FinalizarCarrinhoHandler(
+    ICarrinhoRepository carrinhos, IProdutoRepository produtos, IUnitOfWork unitOfWork, TimeProvider timeProvider)
 {
     public async Task<Result<CarrinhoResponse>> HandleAsync(Guid carrinhoId, CancellationToken cancellationToken)
     {
+        await unitOfWork.IniciarTransacaoAsync(cancellationToken);
+        await produtos.BloquearParaAlterarEstoqueAsync(carrinhoId, null, cancellationToken);
+
         var carrinho = await carrinhos.ObterAsync(carrinhoId, cancellationToken);
         if (carrinho is null)
         {

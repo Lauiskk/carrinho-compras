@@ -1,4 +1,5 @@
 using CarrinhoCompras.Application.Common;
+using CarrinhoCompras.Infrastructure.Reservas;
 using CarrinhoCompras.Infrastructure.Persistence;
 using CarrinhoCompras.Infrastructure.Persistence.Repositories;
 using CarrinhoCompras.Infrastructure.Persistence.Seed;
@@ -31,6 +32,9 @@ public static class DependencyInjection
         services.AddScoped<ICarrinhoRepository, CarrinhoRepository>();
         services.AddScoped<IProdutoRepository, ProdutoRepository>();
         services.AddScoped<ICupomRepository, CupomRepository>();
+
+        // Devolve à loja as unidades de sacolas abandonadas, sem depender de alguém abrir o carrinho de novo.
+        services.AddHostedService<ExpiradorDeReservas>();
 
         services.AddHealthChecks()
             .AddDbContextCheck<CarrinhoComprasDbContext>("banco-de-dados");

@@ -4,17 +4,21 @@ using CarrinhoCompras.Domain.Common;
 
 namespace CarrinhoCompras.Application.Carrinhos.RemoverCupom;
 
-public sealed class RemoverCupomHandler(ICarrinhoRepository carrinhos, IUnitOfWork unitOfWork)
+public sealed class RemoverCupomHandler(
+    ICarrinhoRepository carrinhos, IProdutoRepository produtos, IUnitOfWork unitOfWork, TimeProvider timeProvider)
 {
     public async Task<Result<CarrinhoResponse>> HandleAsync(Guid carrinhoId, CancellationToken cancellationToken)
     {
+        await unitOfWork.IniciarTransacaoAsync(cancellationToken);
+        await produtos.BloquearParaAlterarEstoqueAsync(carrinhoId, null, cancellationToken);
+
         var carrinho = await carrinhos.ObterAsync(carrinhoId, cancellationToken);
         if (carrinho is null)
         {
             return CarrinhoErros.NaoEncontrado(carrinhoId);
         }
 
-        var resultado = carrinho.RemoverCupom();
+        var resultado = carrinho.RemoverCupom(timeProvider.AgoraUtc());
         if (resultado.IsFailure)
         {
             return resultado.Error;

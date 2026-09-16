@@ -40,5 +40,5 @@ public sealed class ProdutoTests
     [InlineData(5, 6, false)]
     [InlineData(0, 1, false)]
     public void Informa_se_o_estoque_comporta_a_quantidade(int estoque, long quantidade, bool esperado) =>
-        new Produto(1, "Produto", 10m, estoque).PossuiEstoquePara(quantidade).ShouldBe(esperado);
+        new Produto(1, "Produto", 10m, estoque).PossuiDisponivelPara(quantidade).ShouldBe(esperado);
 }

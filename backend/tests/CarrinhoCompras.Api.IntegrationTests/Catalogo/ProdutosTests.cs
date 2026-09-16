@@ -10,19 +10,35 @@ public sealed class ProdutosTests(ApiFactory api)
 {
     private readonly HttpClient _cliente = api.CreateClient();
 
+    /// <summary>
+    /// Identidade do catálogo (id, descrição e preço) idêntica ao <c>produtos.json</c>. As quantidades não
+    /// entram na comparação de propósito: com reserva de estoque elas são dado vivo — sobem e descem
+    /// enquanto outras sacolas existem e outras compras são finalizadas.
+    /// </summary>
     [Fact]
-    public async Task Lista_o_catalogo_com_os_mesmos_valores_do_produtos_json()
+    public async Task Lista_o_catalogo_com_os_mesmos_produtos_do_produtos_json()
     {
         var produtos = await _cliente.ListarProdutosAsync();
 
-        var esperados = CatalogoDeReferencia.Produtos
-            .OrderBy(produto => produto.Id)
-            .Select(produto => new ProdutoResponse(produto.Id, produto.DescricaoProduto, produto.PrecoLiquido, produto.QuantidadeEstoque));
-        produtos.ShouldBe(esperados);
+        produtos.Select(produto => produto.Identidade())
+            .ShouldBe(CatalogoDeReferencia.Produtos.OrderBy(produto => produto.Id).Select(produto => produto.Identidade()));
+    }
+
+    /// <summary>As três quantidades sempre fecham entre si, qualquer que seja o momento da leitura.</summary>
+    [Fact]
+    public async Task O_catalogo_expoe_estoque_reservado_e_disponivel_coerentes()
+    {
+        var produtos = await _cliente.ListarProdutosAsync();
+
+        produtos.ShouldAllBe(produto => produto.QuantidadeDisponivel == produto.QuantidadeEstoque - produto.QuantidadeReservada);
+        produtos.ShouldAllBe(produto => produto.QuantidadeReservada >= 0 && produto.QuantidadeReservada <= produto.QuantidadeEstoque);
+        // Nenhuma operação cria estoque: o físico nunca passa do que o catálogo semeou.
+        produtos.ShouldAllBe(produto =>
+            produto.QuantidadeEstoque <= CatalogoDeReferencia.Produtos.Single(seed => seed.Id == produto.Id).QuantidadeEstoque);
     }
 
     [Fact]
-    public async Task Obtem_um_produto_expondo_preco_liquido_e_estoque()
+    public async Task Obtem_um_produto_expondo_preco_liquido_e_quantidade_disponivel()
     {
         var referencia = CatalogoDeReferencia.Produtos[0];
 
@@ -31,7 +47,7 @@ public sealed class ProdutosTests(ApiFactory api)
 
         produto.ShouldNotBeNull();
         produto.PrecoLiquido.ShouldBe(referencia.PrecoLiquido);
-        produto.QuantidadeEstoque.ShouldBe(referencia.QuantidadeEstoque);
+        produto.QuantidadeDisponivel.ShouldBe(produto.QuantidadeEstoque - produto.QuantidadeReservada);
     }
 
     [Fact]

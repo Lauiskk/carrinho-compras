@@ -65,6 +65,25 @@ internal static class ClienteApi
     public static Task<HttpResponseMessage> FinalizarAsync(this HttpClient cliente, Guid carrinhoId) =>
         cliente.PostAsync($"/api/carrinhos/{carrinhoId}/finalizar", content: null, Cancelamento);
 
+    /// <summary>
+    /// Escolhe um produto olhando a <b>disponibilidade atual</b> da API, não os números do JSON: com reserva
+    /// de estoque esse valor muda enquanto os testes rodam. Pega o de maior folga para reduzir disputa.
+    /// </summary>
+    public static async Task<ProdutoResponse> ProdutoComDisponivelAsync(
+        this HttpClient cliente, int minimo, params int[] exceto)
+    {
+        var produtos = await cliente.ListarProdutosAsync();
+        return produtos
+            .Where(produto => produto.QuantidadeDisponivel >= minimo && !exceto.Contains(produto.Id))
+            .MaxBy(produto => produto.QuantidadeDisponivel)
+            ?? throw new InvalidOperationException(
+                $"Nenhum produto do catálogo tem {minimo} unidade(s) disponível(is) neste momento.");
+    }
+
+    /// <summary>Estado atual de um produto no catálogo (estoque, reservado e disponível).</summary>
+    public static async Task<ProdutoResponse> ProdutoAtualAsync(this HttpClient cliente, int produtoId) =>
+        (await cliente.ListarProdutosAsync()).Single(produto => produto.Id == produtoId);
+
     public static async Task<IReadOnlyList<ProdutoResponse>> ListarProdutosAsync(this HttpClient cliente) =>
         await cliente.GetFromJsonAsync<List<ProdutoResponse>>("/api/produtos", Json, Cancelamento)
         ?? throw new InvalidOperationException("A listagem de produtos veio vazia.");

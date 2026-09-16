@@ -5,18 +5,23 @@ using CarrinhoCompras.Domain.Produtos;
 
 namespace CarrinhoCompras.Application.Carrinhos.AdicionarItem;
 
-public sealed class AdicionarItemHandler(ICarrinhoRepository carrinhos, IProdutoRepository produtos, IUnitOfWork unitOfWork)
+public sealed class AdicionarItemHandler(
+    ICarrinhoRepository carrinhos, IProdutoRepository produtos, IUnitOfWork unitOfWork, TimeProvider timeProvider)
 {
     public async Task<Result<CarrinhoResponse>> HandleAsync(
         Guid carrinhoId, AdicionarItemRequest request, CancellationToken cancellationToken)
     {
+        var agora = timeProvider.AgoraUtc();
+        await unitOfWork.IniciarTransacaoAsync(cancellationToken);
+        await produtos.BloquearParaAlterarEstoqueAsync(carrinhoId, request.ProdutoId, cancellationToken);
+
         var carrinho = await carrinhos.ObterAsync(carrinhoId, cancellationToken);
         if (carrinho is null)
         {
             return CarrinhoErros.NaoEncontrado(carrinhoId);
         }
 
-        var podeAlterar = carrinho.VerificarSePodeSerAlterado();
+        var podeAlterar = carrinho.VerificarSePodeSerAlterado(agora);
         if (podeAlterar.IsFailure)
         {
             return podeAlterar.Error;
@@ -28,7 +33,7 @@ public sealed class AdicionarItemHandler(ICarrinhoRepository carrinhos, IProduto
             return ProdutoErros.NaoEncontrado(request.ProdutoId);
         }
 
-        var resultado = carrinho.AdicionarItem(produto, request.Quantidade);
+        var resultado = carrinho.AdicionarItem(produto, request.Quantidade, agora);
         if (resultado.IsFailure)
         {
             return resultado.Error;

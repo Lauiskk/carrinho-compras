@@ -6,6 +6,8 @@ namespace CarrinhoCompras.Infrastructure.Persistence.Seed;
 
 /// <summary>
 /// Sincroniza o catálogo do banco com os arquivos JSON: insere o que falta e atualiza o que mudou, pelo ID.
+/// Repõe o estoque físico com os valores do arquivo (útil para reapresentar a loja), mas nunca mexe na
+/// reserva das sacolas abertas.
 /// É idempotente (rodar de novo não duplica nada) e é chamado pelo EF Core ao aplicar as migrations
 /// (<c>UseSeeding</c>/<c>UseAsyncSeeding</c>). Linhas que não estão no JSON são mantidas, pois podem estar
 /// referenciadas por carrinhos.
@@ -41,7 +43,9 @@ internal static class CatalogoSeeder
         {
             if (produtosNoBanco.TryGetValue(produto.Id, out var existente))
             {
-                contexto.Entry(existente).CurrentValues.SetValues(produto);
+                // Só o que o catálogo manda. Copiar tudo zeraria QuantidadeReservada e soltaria, sem avisar,
+                // as unidades que sacolas abertas estão segurando.
+                existente.AtualizarDoCatalogo(produto.DescricaoProduto, produto.PrecoLiquido, produto.QuantidadeEstoque);
             }
             else
             {

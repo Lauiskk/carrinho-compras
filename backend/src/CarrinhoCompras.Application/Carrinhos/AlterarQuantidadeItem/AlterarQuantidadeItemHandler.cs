@@ -4,18 +4,22 @@ using CarrinhoCompras.Domain.Common;
 
 namespace CarrinhoCompras.Application.Carrinhos.AlterarQuantidadeItem;
 
-public sealed class AlterarQuantidadeItemHandler(ICarrinhoRepository carrinhos, IUnitOfWork unitOfWork)
+public sealed class AlterarQuantidadeItemHandler(
+    ICarrinhoRepository carrinhos, IProdutoRepository produtos, IUnitOfWork unitOfWork, TimeProvider timeProvider)
 {
     public async Task<Result<CarrinhoResponse>> HandleAsync(
         Guid carrinhoId, int produtoId, AlterarQuantidadeItemRequest request, CancellationToken cancellationToken)
     {
+        await unitOfWork.IniciarTransacaoAsync(cancellationToken);
+        await produtos.BloquearParaAlterarEstoqueAsync(carrinhoId, produtoId, cancellationToken);
+
         var carrinho = await carrinhos.ObterAsync(carrinhoId, cancellationToken);
         if (carrinho is null)
         {
             return CarrinhoErros.NaoEncontrado(carrinhoId);
         }
 
-        var resultado = carrinho.AlterarQuantidadeItem(produtoId, request.Quantidade);
+        var resultado = carrinho.AlterarQuantidadeItem(produtoId, request.Quantidade, timeProvider.AgoraUtc());
         if (resultado.IsFailure)
         {
             return resultado.Error;
