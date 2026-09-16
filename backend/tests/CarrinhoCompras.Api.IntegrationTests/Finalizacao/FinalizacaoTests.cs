@@ -31,6 +31,23 @@ public sealed class FinalizacaoTests(ApiFactory api)
         (await _cliente.ObterCarrinhoComSucessoAsync(carrinho.Id)).Status.ShouldBe(StatusCarrinho.Finalizado);
     }
 
+    /// <summary>
+    /// Premissa assumida: o estoque é um teto de validação, não uma reserva — o checkout não baixa o catálogo.
+    /// Este teste trava essa decisão para que uma mudança futura seja consciente, e não silenciosa.
+    /// </summary>
+    [Fact]
+    public async Task Finalizar_nao_altera_o_estoque_do_catalogo()
+    {
+        var produto = Suporte.Catalogo.ComEstoqueDePeloMenos(2);
+        var carrinho = await _cliente.CriarCarrinhoAsync();
+        await _cliente.AdicionarItemComSucessoAsync(carrinho.Id, produto.Id, quantidade: 2);
+
+        (await _cliente.FinalizarAsync(carrinho.Id)).StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var noCatalogo = (await _cliente.ListarProdutosAsync()).Single(item => item.Id == produto.Id);
+        noCatalogo.QuantidadeEstoque.ShouldBe(produto.QuantidadeEstoque);
+    }
+
     [Fact]
     public async Task Finalizar_carrinho_vazio_retorna_422()
     {

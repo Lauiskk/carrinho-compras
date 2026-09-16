@@ -132,14 +132,16 @@ public sealed class ItensTests(ApiFactory api)
         await resposta.DeveSerProblemaAsync(HttpStatusCode.NotFound, "carrinho.item_nao_encontrado");
     }
 
-    [Fact]
-    public async Task Alterar_para_zero_retorna_400()
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-3)]
+    public async Task Alterar_para_quantidade_menor_ou_igual_a_zero_retorna_400(int quantidade)
     {
         var produto = Suporte.Catalogo.ComEstoqueDePeloMenos(1);
         var carrinho = await _cliente.CriarCarrinhoAsync();
         await _cliente.AdicionarItemComSucessoAsync(carrinho.Id, produto.Id);
 
-        var resposta = await _cliente.AlterarQuantidadeAsync(carrinho.Id, produto.Id, 0);
+        var resposta = await _cliente.AlterarQuantidadeAsync(carrinho.Id, produto.Id, quantidade);
 
         var problema = await resposta.DeveSerProblemaAsync(HttpStatusCode.BadRequest, "requisicao.invalida");
         problema.ErrosDoCampo("quantidade").ShouldNotBeEmpty();
